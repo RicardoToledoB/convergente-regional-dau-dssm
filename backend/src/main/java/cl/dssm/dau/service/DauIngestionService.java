@@ -52,11 +52,20 @@ public class DauIngestionService {
         event.setEstadoProcesamiento(EstadoProcesamiento.RECIBIDO);
 
         try {
-            String idDau = text(payload, "idDAU");
-            String idAtencion = text(payload, "idAtencion");
-            if (isBlank(idDau) || isBlank(idAtencion)) {
-                throw new IllegalArgumentException("Campos obligatorios idDAU e idAtencion no pueden venir vacios");
+            String idDau = normalize(text(payload, "idDAU"));
+            String idAtencion = normalize(text(payload, "idAtencion"));
+
+            if (isBlank(idDau)) {
+                throw new IllegalArgumentException("Campo obligatorio idDAU no puede venir vacio");
             }
+
+            // Según normativo convergente, idAtencion no es obligatorio.
+            // Cuando viene null, vacío o solo con espacios, se normaliza internamente con idDAU
+            // para mantener la consolidación y trazabilidad sobre la llave idDAU + idAtencion.
+            if (isBlank(idAtencion)) {
+                idAtencion = idDau;
+            }
+
             event.setIdDau(idDau);
             event.setIdAtencion(idAtencion);
             String tipo = inferTipoEvento(payload, fileName);
@@ -219,6 +228,10 @@ public class DauIngestionService {
         if (value == null || value.length() < 6) return "***";
         return value.substring(0, 3) + "***" + value.substring(value.length() - 3);
     }
+    private String normalize(String value) {
+        return value == null ? null : value.trim();
+    }
+
     private boolean isBlank(String v) { return v == null || v.isBlank(); }
     private boolean notBlank(String v) { return !isBlank(v); }
 }
