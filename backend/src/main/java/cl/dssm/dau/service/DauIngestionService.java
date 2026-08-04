@@ -52,30 +52,32 @@ public class DauIngestionService {
         event.setEstadoProcesamiento(EstadoProcesamiento.RECIBIDO);
 
         try {
-            String idDau = normalize(text(payload, "idDAU"));
-            String idAtencion = normalize(text(payload, "idAtencion"));
+            String idDau = text(payload, "idDAU");
+            String idAtencion = text(payload, "idAtencion");
 
+            // Según el normativo del convergente, idDAU es obligatorio e idAtencion es opcional.
+            // Si idAtencion viene null, vacío o solo con espacios, se normaliza internamente usando idDAU
+            // para mantener compatibilidad con la consolidación actual idDAU + idAtencion.
             if (isBlank(idDau)) {
                 throw new IllegalArgumentException("Campo obligatorio idDAU no puede venir vacio");
             }
-
-            // Según normativo convergente, idAtencion no es obligatorio.
-            // Cuando viene null, vacío o solo con espacios, se normaliza internamente con idDAU
-            // para mantener la consolidación y trazabilidad sobre la llave idDAU + idAtencion.
             if (isBlank(idAtencion)) {
                 idAtencion = idDau;
             }
 
-            event.setIdDau(idDau);
-            event.setIdAtencion(idAtencion);
+            final String idDauFinal = idDau;
+            final String idAtencionFinal = idAtencion;
+
+            event.setIdDau(idDauFinal);
+            event.setIdAtencion(idAtencionFinal);
             String tipo = inferTipoEvento(payload, fileName);
             event.setTipoEventoInferido(tipo);
 
-            DauAttentionEntity att = attentionRepository.findByIdDauAndIdAtencion(idDau, idAtencion)
+            DauAttentionEntity att = attentionRepository.findByIdDauAndIdAtencion(idDauFinal, idAtencionFinal)
                     .orElseGet(() -> {
                         DauAttentionEntity n = new DauAttentionEntity();
-                        n.setIdDau(idDau);
-                        n.setIdAtencion(idAtencion);
+                        n.setIdDau(idDauFinal);
+                        n.setIdAtencion(idAtencionFinal);
                         n.setFechaCreacion(LocalDateTime.now());
                         return n;
                     });
@@ -87,7 +89,7 @@ public class DauIngestionService {
 
             event.setEstadoProcesamiento(EstadoProcesamiento.PROCESADO);
             eventRepository.save(event);
-            return new DauIngestionResponse(idDau, idAtencion, tipo, att.getEstadoActual().name(), hash, "PROCESADO");
+            return new DauIngestionResponse(idDauFinal, idAtencionFinal, tipo, att.getEstadoActual().name(), hash, "PROCESADO");
         } catch (Exception ex) {
             event.setEstadoProcesamiento(EstadoProcesamiento.ERROR);
             event.setMensajeError(ex.getMessage());
@@ -228,10 +230,6 @@ public class DauIngestionService {
         if (value == null || value.length() < 6) return "***";
         return value.substring(0, 3) + "***" + value.substring(value.length() - 3);
     }
-    private String normalize(String value) {
-        return value == null ? null : value.trim();
-    }
-
     private boolean isBlank(String v) { return v == null || v.isBlank(); }
     private boolean notBlank(String v) { return !isBlank(v); }
 }

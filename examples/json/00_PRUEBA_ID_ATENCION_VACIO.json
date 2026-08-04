@@ -1,5 +1,5 @@
 {
-  "nombreSolucion": "Registro Clinico Electronico",
+  "nombreSolucion": "Registro Clínico Electrónico",
   "numeroProceso": 3,
   "mesAtencion": 8,
   "anoAtencion": 2026,
@@ -16,7 +16,7 @@
   "codSexo": "01",
   "prevision": "1",
   "clasificacionBeneficiarioFonasa": "D",
-  "fechaAdmision": "04082026",
+  "fechaAdminision": "04082026",
   "horaAdmision": "14:30",
   "unidadAtencion": "02",
   "motivoConsulta": "PRUEBA ID ATENCION VACIO",
