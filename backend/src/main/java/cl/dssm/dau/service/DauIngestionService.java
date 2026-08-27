@@ -228,6 +228,7 @@ public class DauIngestionService {
             case CATEGORIZADA -> 2;
             case ATENCION_MEDICA -> 3;
             case ALTA_MEDICA -> 4;
+            case ERROR -> 0;
         };
     }
 
