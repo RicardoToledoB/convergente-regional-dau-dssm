@@ -5,6 +5,7 @@ import cl.dssm.dau.model.EstadoProcesamiento;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -14,6 +15,18 @@ public interface DauEventRepository extends JpaRepository<DauEventEntity, Long> 
     Optional<DauEventEntity> findByHashPayload(String hashPayload);
     Page<DauEventEntity> findByEstadoProcesamiento(EstadoProcesamiento estado, Pageable pageable);
     Page<DauEventEntity> findByIdDauAndIdAtencion(String idDau, String idAtencion, Pageable pageable);
+
+
+    @Modifying
+    @Query(value = """
+            UPDATE dau_eventos_recibidos
+            SET id_atencion = :newIdAtencion
+            WHERE id_dau = :idDau
+              AND id_atencion = :oldIdAtencion
+            """, nativeQuery = true)
+    int relinkTemporaryEvents(@Param("idDau") String idDau,
+                              @Param("oldIdAtencion") String oldIdAtencion,
+                              @Param("newIdAtencion") String newIdAtencion);
 
     @Query(value = """
             SELECT * FROM dau_eventos_recibidos e
