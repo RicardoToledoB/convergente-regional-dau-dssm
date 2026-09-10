@@ -151,6 +151,22 @@ public class PantallaApsService {
     private String formatoMinutos(Long total) { return total == null ? "--" : formatoMinutos(total.longValue()); }
     private String formatoMinutos(long total) { return String.format("%02d:%02d", total / 60, total % 60); }
 
+    private String tramoHorario(DauAttentionEntity a) {
+        if (a == null) return "S/D";
+        String hora = first(a.getHoraAdmision(), a.getHoraAtencion());
+        if (hora == null || hora.isBlank()) return "S/D";
+        try {
+            int h = LocalTime.parse(hora.trim()).getHour();
+            if (h < 8) return "00-08";
+            if (h < 12) return "08-12";
+            if (h < 16) return "12-16";
+            if (h < 20) return "16-20";
+            return "20-24";
+        } catch (Exception e) {
+            return "S/D";
+        }
+    }
+
     private String displayTramo(String t) { return switch (t) { case "08-12" -> "08 a 12"; case "12-16" -> "12 a 16"; case "16-20" -> "16 a 20"; case "20-24" -> "20 a 24"; case "00-08" -> "00 a 08"; default -> "Sin dato"; }; }
 
     private String displayEstablecimiento(Integer codigo) {
