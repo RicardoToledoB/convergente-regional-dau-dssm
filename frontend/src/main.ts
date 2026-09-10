@@ -259,7 +259,7 @@ class DetailDialogComponent {
   ],
   template: `
     <mat-sidenav-container class="shell">
-      <mat-sidenav [mode]="isMobile ? 'over' : 'side'" [opened]="!isMobile || mobileMenuOpen" class="sidenav">
+      <mat-sidenav *ngIf="!isVisorAps()" [mode]="isMobile ? 'over' : 'side'" [opened]="!isMobile || mobileMenuOpen" class="sidenav">
         <div class="brand-panel">
           <div class="brand-mark">D</div>
           <div>
@@ -291,7 +291,7 @@ class DetailDialogComponent {
       </mat-sidenav>
 
       <mat-sidenav-content class="content">
-        <mat-toolbar class="topbar" *ngIf="token">
+        <mat-toolbar class="topbar" *ngIf="token && !isVisorAps()">
           <button mat-icon-button class="mobile-menu-button" *ngIf="isMobile" (click)="mobileMenuOpen = true" matTooltip="Abrir menú"><mat-icon>menu</mat-icon></button>
           <div>
             <span class="topbar-title">{{title}}</span>
@@ -546,7 +546,9 @@ class DetailDialogComponent {
                 <div class="aps-header-right">
                   <div><mat-icon>calendar_month</mat-icon><span>{{pantallaNow | date:'EEEE d MMMM y'}}</span></div>
                   <strong>{{pantallaNow | date:'HH:mm'}}</strong>
-                  <span class="online-dot"><i></i>Sistema en línea</span>
+                  <span class="online-dot" [class.offline]="!pantallaOnline"><i></i>{{pantallaOnline ? 'Sistema en línea' : 'Sin conexión'}}</span>
+                  <span class="aps-last-update" *ngIf="pantallaLastOk">Actualizado {{pantallaLastOk | date:'HH:mm:ss'}}</span>
+                  <button mat-icon-button *ngIf="isVisorAps()" matTooltip="Salir" (click)="logout()"><mat-icon>logout</mat-icon></button>
                 </div>
               </div>
 
@@ -588,17 +590,15 @@ class DetailDialogComponent {
                 </div>
                 <div class="aps-table-scroll">
                   <table class="aps-public-table">
-                    <thead><tr><th>#</th><th>Paciente</th><th>Categorización</th><th>Tiempo transcurrido</th><th>BOX</th><th>Estado</th></tr></thead>
+                    <thead><tr><th>#</th><th>Categorización</th><th>Tiempo transcurrido</th><th>Estado</th></tr></thead>
                     <tbody>
                       <tr *ngFor="let p of pantallaRows; let i = index">
                         <td>{{pantallaPage * pantallaPageSize + i + 1}}</td>
-                        <td>{{p.paciente}}</td>
                         <td><span class="category-pill" [ngClass]="categoryCss(p.categoria)">{{p.categoria}}</span></td>
                         <td>{{p.tiempoTranscurrido}}</td>
-                        <td>{{p.box || '--'}}</td>
                         <td><span class="aps-state-dot" [class.attending]="p.estado==='En atención'"></span>{{p.estado}}</td>
                       </tr>
-                      <tr *ngIf="!pantallaRows.length"><td colspan="6" class="empty-aps">Sin pacientes activos para el establecimiento seleccionado.</td></tr>
+                      <tr *ngIf="!pantallaRows.length"><td colspan="4" class="empty-aps">Sin pacientes activos para el establecimiento seleccionado.</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -712,6 +712,8 @@ export class AppComponent {
   pantallaNow = new Date();
   pantallaEstablecimiento = 201079;
   pantallaAps: any = null;
+  pantallaOnline = true;
+  pantallaLastOk: Date | null = null;
   pantallaPage = 0;
   pantallaPageSize = 8;
   pantallaEstablecimientos = [
@@ -731,7 +733,7 @@ export class AppComponent {
   }
   get apiHost() { return API.replace('/api', '').replace('https://', '').replace('http://', ''); }
 
-  ngOnInit() { if (this.token) { this.go(this.defaultViewForRole()); } setInterval(() => { this.pantallaNow = new Date(); if (this.token && this.view === 'pantallaAps') this.loadPantallaAps(false); }, 30000); }
+  ngOnInit() { if (this.token) { this.go(this.defaultViewForRole()); } setInterval(() => { this.pantallaNow = new Date(); if (this.token && this.view === 'pantallaAps') this.loadPantallaAps(false); }, 15000); setInterval(() => { if (this.token && this.view === 'pantallaAps' && this.pantallaTotalPages > 1) this.nextPantallaPage(); }, 12000); }
   isAdmin() { return this.role === 'ADMIN'; }
   isVisorAps() { return this.role === 'VISOR_APS'; }
   canUseMainModules() { return !this.isVisorAps(); }
@@ -954,9 +956,11 @@ export class AppComponent {
     this.http.get<any>(`${API}/pantallas/aps`, { params }).subscribe({
       next: r => {
         this.pantallaAps = r.data || {};
+        this.pantallaOnline = true;
+        this.pantallaLastOk = new Date();
         this.pantallaPage = Math.min(this.pantallaPage, Math.max(this.pantallaTotalPages - 1, 0));
       },
-      error: e => { if (showToast) this.toast(e?.error?.message || 'No fue posible cargar pantalla APS'); }
+      error: e => { this.pantallaOnline = false; if (showToast) this.toast(e?.error?.message || 'No fue posible cargar pantalla APS'); }
     });
   }
   get pantallaRows() {
@@ -1002,7 +1006,7 @@ export class AppComponent {
     const fullName = prompt('Nombre completo', u.fullName || ''); if (fullName === null) return;
     const email = prompt('Email', u.email || ''); if (email === null) return;
     const providerName = prompt('Proveedor / origen', u.providerName || ''); if (providerName === null) return;
-    const role = prompt('Rol: ADMIN, INTEGRADOR, GESTOR_RED, VISUALIZADOR, AUDITOR', u.role || 'VISUALIZADOR'); if (role === null) return;
+    const role = prompt('Rol: ADMIN, INTEGRADOR, GESTOR_RED, VISUALIZADOR, AUDITOR, VISOR_APS', u.role || 'VISUALIZADOR'); if (role === null) return;
     const body = { username: u.username, fullName, email, providerName, role, enabled: u.enabled };
     this.http.put<any>(`${API}/admin/users/${u.id}`, body).subscribe({
       next: () => {

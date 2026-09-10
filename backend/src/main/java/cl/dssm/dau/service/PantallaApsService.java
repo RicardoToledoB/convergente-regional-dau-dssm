@@ -5,6 +5,7 @@ import cl.dssm.dau.entity.DauAttentionEntity;
 import cl.dssm.dau.model.DauEstado;
 import cl.dssm.dau.repository.DauAttentionRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -19,20 +20,28 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PantallaApsService {
     private final DauAttentionRepository attentions;
+
+    @Value("${pantalla.aps.max-active-hours:24}")
+    private long maxActiveHours;
+
     private static final DateTimeFormatter FECHA_DAU = DateTimeFormatter.ofPattern("ddMMyyyy");
     private static final DateTimeFormatter FECHA_HORA = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
 
     public PantallaApsResponse getPantalla(Integer codigoEstablecimiento) {
-        List<DauAttentionEntity> activos = codigoEstablecimiento == null
+        List<DauAttentionEntity> candidatos = codigoEstablecimiento == null
                 ? attentions.findByEstadoActualNotOrderByFechaActualizacionDesc(DauEstado.ALTA_MEDICA)
                 : attentions.findByCodigoEstablecimientoAndEstadoActualNotOrderByFechaActualizacionDesc(codigoEstablecimiento, DauEstado.ALTA_MEDICA);
 
         LocalDateTime now = LocalDateTime.now();
-        long enAtencion = activos.stream().filter(a -> a.getEstadoActual() == DauEstado.ATENCION_MEDICA).count();
-        long enEspera = activos.stream().filter(a -> a.getEstadoActual() == DauEstado.ADMISION || a.getEstadoActual() == DauEstado.CATEGORIZADA).count();
+        List<DauAttentionEntity> activos = candidatos.stream()
+                .filter(a -> esActivoOperacional(a, now))
+                .toList();
+
+        long enAtencion = activos.stream().filter(this::estaEnAtencion).count();
+        long enEspera = activos.stream().filter(this::estaEnEspera).count();
 
         List<Long> minutos = activos.stream()
-                .filter(a -> a.getEstadoActual() == DauEstado.ADMISION || a.getEstadoActual() == DauEstado.CATEGORIZADA)
+                .filter(this::estaEnEspera)
                 .map(a -> minutosDesdeAdmision(a, now))
                 .filter(Objects::nonNull)
                 .toList();
@@ -47,12 +56,11 @@ public class PantallaApsService {
         List<PantallaApsResponse.PacientePantalla> pacientes = activos.stream()
                 .sorted(Comparator.comparing((DauAttentionEntity a) -> categoriaOrden(categoria(a))).thenComparing((DauAttentionEntity a) -> Optional.ofNullable(minutosDesdeAdmision(a, now)).orElse(0L), Comparator.reverseOrder()))
                 .map(a -> new PantallaApsResponse.PacientePantalla(
-                        pacienteAnonimo(a),
                         displayCategoriaCodigo(categoria(a)),
                         displayCategoriaNombre(categoria(a)),
                         formatoMinutos(minutosDesdeAdmision(a, now)),
-                        box(a),
-                        displayEstado(a.getEstadoActual())
+                        null,
+                        estaEnAtencion(a) ? "En atención" : "Categorizado"
                 ))
                 .toList();
 
@@ -70,6 +78,33 @@ public class PantallaApsService {
                 distribucion(activos, a -> displayCategoriaCodigo(categoria(a)), c -> c + " · " + displayCategoriaNombre(codigoDesdeDisplay(c))),
                 distribucion(activos, a -> tramoHorario(a), c -> displayTramo(c))
         );
+    }
+
+
+    private boolean esActivoOperacional(DauAttentionEntity a, LocalDateTime now) {
+        if (a == null || a.getEstadoActual() == null) return false;
+        if (a.getEstadoActual() == DauEstado.ALTA_MEDICA || a.getEstadoActual() == DauEstado.ERROR) return false;
+        if (a.getFechaAlta() != null && !a.getFechaAlta().isBlank()) return false;
+
+        LocalDateTime adm = parseFechaHora(a.getFechaAdminision(), a.getHoraAdmision());
+        if (adm == null) return false;
+
+        long minutos = Duration.between(adm, now).toMinutes();
+        if (minutos < 0) return false;
+        return minutos <= Math.max(maxActiveHours, 1) * 60;
+    }
+
+    private boolean estaEnAtencion(DauAttentionEntity a) {
+        if (a == null) return false;
+        if (a.getFechaAlta() != null && !a.getFechaAlta().isBlank()) return false;
+        if (a.getEstadoActual() == DauEstado.ATENCION_MEDICA) return true;
+        return (a.getFechaAtencion() != null && !a.getFechaAtencion().isBlank())
+                || (a.getHoraAtencion() != null && !a.getHoraAtencion().isBlank());
+    }
+
+    private boolean estaEnEspera(DauAttentionEntity a) {
+        if (a == null || estaEnAtencion(a)) return false;
+        return a.getEstadoActual() == DauEstado.ADMISION || a.getEstadoActual() == DauEstado.CATEGORIZADA;
     }
 
     private PantallaApsResponse.CategoriaTiempo categoriaTiempo(String cat, List<DauAttentionEntity> activos, LocalDateTime now) {
@@ -116,23 +151,6 @@ public class PantallaApsService {
     private String formatoMinutos(Long total) { return total == null ? "--" : formatoMinutos(total.longValue()); }
     private String formatoMinutos(long total) { return String.format("%02d:%02d", total / 60, total % 60); }
 
-    private String pacienteAnonimo(DauAttentionEntity a) {
-        String base = first(a.getIdPaciente(), a.getRun(), a.getIdDau(), "PAC");
-        String tail = base.length() <= 3 ? base : base.substring(base.length() - 3);
-        return "Paciente " + tail;
-    }
-    private String box(DauAttentionEntity a) { return a.getEstadoActual() == DauEstado.ATENCION_MEDICA ? "BOX" : "--"; }
-    private String displayEstado(DauEstado e) { if (e == null) return "Sin estado"; return switch (e) { case ADMISION -> "Admitido"; case CATEGORIZADA -> "Categorizado"; case ATENCION_MEDICA -> "En atención"; case ALTA_MEDICA -> "Alta"; case ERROR -> "Error"; }; }
-    private String tramoHorario(DauAttentionEntity a) {
-        LocalDateTime adm = parseFechaHora(a.getFechaAdminision(), a.getHoraAdmision());
-        if (adm == null) return "S/D";
-        int h = adm.getHour();
-        if (h >= 8 && h < 12) return "08-12";
-        if (h >= 12 && h < 16) return "12-16";
-        if (h >= 16 && h < 20) return "16-20";
-        if (h >= 20 || h < 0) return "20-24";
-        return "00-08";
-    }
     private String displayTramo(String t) { return switch (t) { case "08-12" -> "08 a 12"; case "12-16" -> "12 a 16"; case "16-20" -> "16 a 20"; case "20-24" -> "20 a 24"; case "00-08" -> "00 a 08"; default -> "Sin dato"; }; }
 
     private String displayEstablecimiento(Integer codigo) {

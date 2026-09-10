@@ -500,3 +500,16 @@ td small { display: block; color: var(--muted); margin-top: 3px; }
   .aps-selector-card, .aps-category-card, .aps-table-card { margin-left: 10px; margin-right: 10px; }
   .aps-mini-grid { padding-left: 10px; padding-right: 10px; }
 }
+
+
+/* v4.4.2 Visor APS Operacional */
+.aps-last-update { font-size: 12px; color: #d9ecff; white-space: nowrap; }
+.online-dot.offline i { background: #ef4444; }
+.online-dot.offline { color: #ffe0e0; }
+.aps-public-table th:nth-child(1), .aps-public-table td:nth-child(1) { width: 70px; }
+.aps-public-table th:nth-child(2), .aps-public-table td:nth-child(2) { width: 220px; }
+.aps-public-table th:nth-child(3), .aps-public-table td:nth-child(3) { width: 260px; }
+.aps-public-table th:nth-child(4), .aps-public-table td:nth-child(4) { width: 260px; }
+@media (min-width: 901px) {
+  .shell:has(.pantalla-page) .content { min-width: 0; }
+}

@@ -18,7 +18,6 @@ public record PantallaApsResponse(
 ) {
     public record CategoriaTiempo(String categoria, String nombre, String tiempo, long total) {}
     public record PacientePantalla(
-            String paciente,
             String categoria,
             String categoriaNombre,
             String tiempoTranscurrido,
