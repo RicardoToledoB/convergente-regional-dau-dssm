@@ -5,5 +5,6 @@ public enum Role {
     INTEGRADOR,
     GESTOR_RED,
     VISUALIZADOR,
-    AUDITOR
+    AUDITOR,
+    VISOR_APS
 }

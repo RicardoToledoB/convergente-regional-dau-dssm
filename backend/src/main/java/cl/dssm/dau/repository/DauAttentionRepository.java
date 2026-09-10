@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface DauAttentionRepository extends JpaRepository<DauAttentionEntity, Long> {
@@ -52,6 +53,9 @@ public interface DauAttentionRepository extends JpaRepository<DauAttentionEntity
                                             @Param("fechaDesde") String fechaDesde,
                                             @Param("fechaHasta") String fechaHasta,
                                             Pageable pageable);
+
+    List<DauAttentionEntity> findByEstadoActualNotOrderByFechaActualizacionDesc(DauEstado estado);
+    List<DauAttentionEntity> findByCodigoEstablecimientoAndEstadoActualNotOrderByFechaActualizacionDesc(Integer codigoEstablecimiento, DauEstado estado);
 
     long countByEstadoActual(DauEstado estado);
 }

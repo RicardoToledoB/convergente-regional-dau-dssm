@@ -276,12 +276,13 @@ class DetailDialogComponent {
         </div>
 
         <nav class="nav" *ngIf="token">
-          <button mat-button [class.active]="view==='dashboard'" (click)="go('dashboard'); closeMobileMenu()"><mat-icon>dashboard</mat-icon><span>Dashboard</span></button>
-          <button mat-button [class.active]="view==='atenciones'" (click)="go('atenciones'); closeMobileMenu()"><mat-icon>monitor_heart</mat-icon><span>Monitor DAU</span></button>
-          <button mat-button [class.active]="view==='eventos'" (click)="go('eventos'); closeMobileMenu()"><mat-icon>receipt_long</mat-icon><span>Eventos</span></button>
+          <button mat-button *ngIf="canUseMainModules()" [class.active]="view==='dashboard'" (click)="go('dashboard'); closeMobileMenu()"><mat-icon>dashboard</mat-icon><span>Dashboard</span></button>
+          <button mat-button *ngIf="canUseMainModules()" [class.active]="view==='atenciones'" (click)="go('atenciones'); closeMobileMenu()"><mat-icon>monitor_heart</mat-icon><span>Monitor DAU</span></button>
+          <button mat-button *ngIf="canUseMainModules()" [class.active]="view==='eventos'" (click)="go('eventos'); closeMobileMenu()"><mat-icon>receipt_long</mat-icon><span>Eventos</span></button>
           <button mat-button [class.active]="view==='errores'" *ngIf="canAudit()" (click)="go('errores'); closeMobileMenu()"><mat-icon>report_problem</mat-icon><span>Errores</span></button>
           <button mat-button [class.active]="view==='usuarios'" *ngIf="isAdmin()" (click)="go('usuarios'); closeMobileMenu()"><mat-icon>manage_accounts</mat-icon><span>Usuarios</span></button>
-          <button mat-button [class.active]="view==='gestion'" (click)="go('gestion'); closeMobileMenu()"><mat-icon>analytics</mat-icon><span>Gestión Red</span></button>
+          <button mat-button *ngIf="canUseMainModules()" [class.active]="view==='gestion'" (click)="go('gestion'); closeMobileMenu()"><mat-icon>analytics</mat-icon><span>Gestión Red</span></button>
+          <button mat-button *ngIf="canUsePantallaAps()" [class.active]="view==='pantallaAps'" (click)="go('pantallaAps'); closeMobileMenu()"><mat-icon>tv</mat-icon><span>Pantalla APS</span></button>
         </nav>
 
         <div class="sidenav-footer" *ngIf="token">
@@ -319,7 +320,7 @@ class DetailDialogComponent {
             </mat-card>
           </section>
 
-          <section *ngIf="token && view==='dashboard'" class="page-section">
+          <section *ngIf="token && view==='dashboard' && canUseMainModules()" class="page-section">
             <div class="section-header"><div><h2>Dashboard operacional</h2><p>Resumen regional de atenciones y eventos DAU recibidos.</p></div></div>
             <div class="kpi-grid">
               <mat-card class="kpi-card primary"><mat-card-content><mat-icon>clinical_notes</mat-icon><strong>{{dash?.totalAtenciones || 0}}</strong><span>Total atenciones</span></mat-card-content></mat-card>
@@ -332,7 +333,7 @@ class DetailDialogComponent {
             </div>
           </section>
 
-          <section *ngIf="token && view==='atenciones'" class="page-section">
+          <section *ngIf="token && view==='atenciones' && canUseMainModules()" class="page-section">
             <div class="section-header"><div><h2>Monitor DAU</h2><p>Búsqueda y seguimiento de atenciones consolidadas.</p></div></div>
             <mat-card class="filter-card">
               <div class="filter-grid">
@@ -360,7 +361,7 @@ class DetailDialogComponent {
             </mat-card>
           </section>
 
-          <section *ngIf="token && view==='eventos'" class="page-section">
+          <section *ngIf="token && view==='eventos' && canUseMainModules()" class="page-section">
             <div class="section-header"><div><h2>Bitácora de eventos recibidos</h2><p>Histórico técnico con payload original, hash, estado e inferencia de evento.</p></div></div>
             <mat-card class="filter-card">
               <div class="filter-grid">
@@ -388,7 +389,7 @@ class DetailDialogComponent {
             </mat-card>
           </section>
 
-          <section *ngIf="token && view==='errores'" class="page-section">
+          <section *ngIf="token && view==='errores' && canAudit()" class="page-section">
             <div class="section-header"><div><h2>Errores de integración</h2><p>Eventos rechazados o procesados con error técnico/funcional.</p></div></div>
             <mat-card class="filter-card">
               <div class="filter-grid">
@@ -413,7 +414,7 @@ class DetailDialogComponent {
           </section>
 
 
-          <section *ngIf="token && view==='gestion'" class="page-section">
+          <section *ngIf="token && view==='gestion' && canUseMainModules()" class="page-section">
             <div class="section-header">
               <div>
                 <h2>Gestión Red de Urgencia</h2>
@@ -532,6 +533,95 @@ class DetailDialogComponent {
             </mat-card>
           </section>
 
+          <section *ngIf="token && view==='pantallaAps' && canUsePantallaAps()" class="page-section pantalla-page">
+            <div class="aps-screen">
+              <div class="aps-header">
+                <div class="aps-brand">
+                  <div class="aps-logo"><mat-icon>groups</mat-icon><small>APS</small></div>
+                  <div>
+                    <h2>Monitoreo APS en Red</h2>
+                    <p>Información Servicio de Urgencia / APS</p>
+                  </div>
+                </div>
+                <div class="aps-header-right">
+                  <div><mat-icon>calendar_month</mat-icon><span>{{pantallaNow | date:'EEEE d MMMM y'}}</span></div>
+                  <strong>{{pantallaNow | date:'HH:mm'}}</strong>
+                  <span class="online-dot"><i></i>Sistema en línea</span>
+                </div>
+              </div>
+
+              <mat-card class="aps-selector-card">
+                <div class="aps-selector-title"><mat-icon>apartment</mat-icon><strong>Establecimiento a monitorear</strong></div>
+                <mat-form-field appearance="outline" class="aps-select">
+                  <mat-label>Establecimiento</mat-label>
+                  <mat-select [(ngModel)]="pantallaEstablecimiento" (selectionChange)="loadPantallaAps()">
+                    <mat-option *ngFor="let e of pantallaEstablecimientos" [value]="e.value">{{e.label}}</mat-option>
+                  </mat-select>
+                </mat-form-field>
+                <div class="aps-quick-tabs">
+                  <button mat-stroked-button *ngFor="let e of pantallaEstablecimientos.slice(0,4)" [class.active]="pantallaEstablecimiento===e.value" (click)="pantallaEstablecimiento=e.value; loadPantallaAps()">{{e.short || e.label}}</button>
+                </div>
+                <button mat-icon-button matTooltip="Actualizar" (click)="loadPantallaAps()"><mat-icon>refresh</mat-icon></button>
+              </mat-card>
+
+              <div class="aps-kpi-row">
+                <mat-card class="aps-kpi wait"><mat-icon>groups</mat-icon><div><span>Pacientes en espera</span><strong>{{pantallaAps?.pacientesEnEspera || 0}}</strong></div></mat-card>
+                <mat-card class="aps-kpi care"><mat-icon>medical_services</mat-icon><div><span>Pacientes en atención</span><strong>{{pantallaAps?.pacientesEnAtencion || 0}}</strong></div></mat-card>
+                <mat-card class="aps-kpi avg"><mat-icon>schedule</mat-icon><div><span>Tiempo promedio de espera</span><strong>{{pantallaAps?.tiempoPromedioEspera || '00:00'}}</strong></div></mat-card>
+                <mat-card class="aps-kpi max"><mat-icon>timer</mat-icon><div><span>Tiempo máximo de espera</span><strong>{{pantallaAps?.tiempoMaximoEspera || '00:00'}}</strong></div></mat-card>
+              </div>
+
+              <mat-card class="aps-category-card">
+                <h3><mat-icon>bar_chart</mat-icon>Tiempo de espera por categorización</h3>
+                <div class="aps-category-grid">
+                  <div class="aps-category" *ngFor="let c of pantallaAps?.tiemposPorCategoria || []" [ngClass]="categoryCss(c.categoria)">
+                    <strong>{{c.categoria}}</strong>
+                    <span>{{c.tiempo}}</span>
+                  </div>
+                </div>
+              </mat-card>
+
+              <mat-card class="aps-table-card">
+                <div class="aps-table-title">
+                  <h3><mat-icon>format_list_bulleted</mat-icon>Pacientes en espera / atención</h3>
+                  <span>Mostrando página {{pantallaPage + 1}} de {{pantallaTotalPages}}</span>
+                </div>
+                <div class="aps-table-scroll">
+                  <table class="aps-public-table">
+                    <thead><tr><th>#</th><th>Paciente</th><th>Categorización</th><th>Tiempo transcurrido</th><th>BOX</th><th>Estado</th></tr></thead>
+                    <tbody>
+                      <tr *ngFor="let p of pantallaRows; let i = index">
+                        <td>{{pantallaPage * pantallaPageSize + i + 1}}</td>
+                        <td>{{p.paciente}}</td>
+                        <td><span class="category-pill" [ngClass]="categoryCss(p.categoria)">{{p.categoria}}</span></td>
+                        <td>{{p.tiempoTranscurrido}}</td>
+                        <td>{{p.box || '--'}}</td>
+                        <td><span class="aps-state-dot" [class.attending]="p.estado==='En atención'"></span>{{p.estado}}</td>
+                      </tr>
+                      <tr *ngIf="!pantallaRows.length"><td colspan="6" class="empty-aps">Sin pacientes activos para el establecimiento seleccionado.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="aps-pager" *ngIf="pantallaTotalPages > 1">
+                  <button mat-icon-button (click)="prevPantallaPage()"><mat-icon>chevron_left</mat-icon></button>
+                  <button mat-button *ngFor="let n of pantallaPages" [class.active]="n===pantallaPage" (click)="pantallaPage=n">{{n+1}}</button>
+                  <button mat-icon-button (click)="nextPantallaPage()"><mat-icon>chevron_right</mat-icon></button>
+                </div>
+              </mat-card>
+
+              <div class="aps-mini-grid">
+                <mat-card class="aps-mini-card" *ngFor="let chart of pantallaCharts">
+                  <h3><mat-icon>{{chart.icon}}</mat-icon>{{chart.title}}</h3>
+                  <div class="aps-mini-row" *ngFor="let item of chart.items">
+                    <label>{{item.nombre}}</label>
+                    <div class="aps-mini-track"><span [style.width.%]="item.width"></span></div>
+                    <strong>{{item.total}}</strong>
+                  </div>
+                </mat-card>
+              </div>
+            </div>
+          </section>
+
           <section *ngIf="token && view==='usuarios'" class="page-section">
             <div class="section-header"><div><h2>Administración de usuarios</h2><p>Creación y control de cuentas para monitoreo, auditoría e integraciones.</p></div></div>
             <mat-card class="filter-card">
@@ -578,7 +668,7 @@ export class AppComponent {
   role = localStorage.getItem('role') || '';
   providerName = localStorage.getItem('providerName') || '';
   error = '';
-  view: 'dashboard'|'atenciones'|'eventos'|'errores'|'usuarios'|'gestion' = 'dashboard';
+  view: 'dashboard'|'atenciones'|'eventos'|'errores'|'usuarios'|'gestion'|'pantallaAps' = 'dashboard';
   loading = false;
   isMobile = window.innerWidth <= 900;
   mobileMenuOpen = false;
@@ -593,7 +683,7 @@ export class AppComponent {
   dash: any;
   estados = ['ADMISION', 'CATEGORIZADA', 'ATENCION_MEDICA', 'ALTA_MEDICA'];
   tiposEvento = ['01_ADMISION', '02_CATEGORIZACION', '03_ATENCION_MEDICA', '04_ALTA_MEDICA'];
-  roles = ['ADMIN', 'INTEGRADOR', 'GESTOR_RED', 'VISUALIZADOR', 'AUDITOR'];
+  roles = ['ADMIN', 'INTEGRADOR', 'GESTOR_RED', 'VISUALIZADOR', 'AUDITOR', 'VISOR_APS'];
 
   attCols = ['idDau', 'establecimiento', 'admision', 'motivo', 'cat', 'estado', 'acciones'];
   eventCols = ['fecha', 'idDau', 'evento', 'estado', 'hash', 'archivo', 'acciones'];
@@ -607,7 +697,7 @@ export class AppComponent {
   usuarios: any[] = []; userTotal = 0; userPage = 0; userSize = 20;
   gestionModulo: 'consultas'|'tiempos' = 'consultas'; gestionTab = 0; gestionRows: any[] = []; gestionResumen: any = {}; gestionSeries: any[] = []; gestionDistribuciones: any = {}; gestionTotal = 0;
   dispositivos = [{value: 'HCM', label: 'Hospital Clínico'}, {value: 'RAYEN', label: 'Rayen'}, {value: 'APS', label: 'APS'}, {value: 'HOSPITAL_COMUNITARIO', label: 'Hospital comunitario'}];
-  establecimientos = [{value: 126100, label: '126100 - HCM'}, {value: 121105, label: '121105 - Puerto Natales'}, {value: 121102, label: '121102 - Porvenir'}, {value: 121108, label: '121108 - Puerto Williams'}];
+  establecimientos = [{value: 201079, label: '201079 - SAR Dr. Juan Damianovic'}, {value: 126100, label: '126100 - HCM'}, {value: 126900, label: '126900'}, {value: 121105, label: '121105 - Puerto Natales'}, {value: 121110, label: '121110 - Porvenir'}, {value: 121120, label: '121120 - Puerto Williams'}, {value: 121102, label: '121102 - Porvenir'}, {value: 121108, label: '121108 - Puerto Williams'}];
   origenes = [{value: 'UEH', label: 'UEH'}, {value: 'UGO', label: 'UGO'}, {value: 'APS', label: 'APS'}, {value: 'SAMU', label: 'SAMU'}, {value: 'ESPONTANEO', label: 'Espontáneo'}];
   sexos = [{value: '01', label: 'Masculino'}, {value: '02', label: 'Femenino'}, {value: '99', label: 'No informado'}];
   categorias = [{value: '01', label: 'C1 · Riesgo vital'}, {value: '02', label: 'C2 · Emergencia'}, {value: '03', label: 'C3 · Urgencia'}, {value: '04', label: 'C4 · Menor urgencia'}, {value: '05', label: 'C5 · No urgencia'}];
@@ -619,17 +709,35 @@ export class AppComponent {
   errF: any = { q: '', idDau: '', fechaDesde: '', fechaHasta: '', page: 0, size: 20 };
   newUser: any = { username: '', password: '', fullName: '', email: '', providerName: '', role: 'VISUALIZADOR', enabled: true };
   gestionF: any = { dispositivos: [], establecimientos: [], sexos: [], categorias: [], origenes: [], gruposDiagnostico: [], tramosHorarios: [], edadDesde: '', edadHasta: '', fechaDesde: '', fechaHasta: '', agruparPor: 'DIA', page: 0, size: 20 };
+  pantallaNow = new Date();
+  pantallaEstablecimiento = 201079;
+  pantallaAps: any = null;
+  pantallaPage = 0;
+  pantallaPageSize = 8;
+  pantallaEstablecimientos = [
+    {value: 201079, label: '201079 - SAR Dr. Juan Damianovic', short: 'SAR Dr. Juan Damianovic'},
+    {value: 126900, label: '126900 - APS / Urgencia', short: 'APS / Urgencia'},
+    {value: 126100, label: '126100 - HCM', short: 'HCM'},
+    {value: 121105, label: '121105 - Puerto Natales', short: 'Puerto Natales'},
+    {value: 121110, label: '121110 - Porvenir', short: 'Porvenir'},
+    {value: 121120, label: '121120 - Puerto Williams', short: 'Puerto Williams'}
+  ];
 
   get title() {
-    return ({ dashboard: 'Dashboard operacional', atenciones: 'Monitor DAU', eventos: 'Bitácora de eventos', errores: 'Errores de integración', usuarios: 'Administración de usuarios', gestion: 'Gestión Red de Urgencia' } as any)[this.view];
+    return ({ dashboard: 'Dashboard operacional', atenciones: 'Monitor DAU', eventos: 'Bitácora de eventos', errores: 'Errores de integración', usuarios: 'Administración de usuarios', gestion: 'Gestión Red de Urgencia', pantallaAps: 'Pantalla APS' } as any)[this.view];
   }
   get subtitle() {
-    return ({ dashboard: 'Resumen regional', atenciones: 'Atenciones consolidadas', eventos: 'Trazabilidad técnica', errores: 'Control de rechazos', usuarios: 'Cuentas y roles', gestion: 'Reportería avanzada' } as any)[this.view];
+    return ({ dashboard: 'Resumen regional', atenciones: 'Atenciones consolidadas', eventos: 'Trazabilidad técnica', errores: 'Control de rechazos', usuarios: 'Cuentas y roles', gestion: 'Reportería avanzada', pantallaAps: 'Vista pública para establecimientos' } as any)[this.view];
   }
   get apiHost() { return API.replace('/api', '').replace('https://', '').replace('http://', ''); }
 
-  ngOnInit() { if (this.token) this.loadDashboard(); }
+  ngOnInit() { if (this.token) { this.go(this.defaultViewForRole()); } setInterval(() => { this.pantallaNow = new Date(); if (this.token && this.view === 'pantallaAps') this.loadPantallaAps(false); }, 30000); }
   isAdmin() { return this.role === 'ADMIN'; }
+  isVisorAps() { return this.role === 'VISOR_APS'; }
+  canUseMainModules() { return !this.isVisorAps(); }
+  canUsePantallaAps() { return this.role === 'ADMIN' || this.role === 'VISOR_APS'; }
+  defaultViewForRole() { return this.isVisorAps() ? 'pantallaAps' : 'dashboard'; }
+  canAccessView(v: any) { if (v === 'pantallaAps') return this.canUsePantallaAps(); if (this.isVisorAps()) return false; if (v === 'usuarios') return this.isAdmin(); if (v === 'errores') return this.canAudit(); return true; }
   canAudit() { return this.role === 'ADMIN' || this.role === 'AUDITOR'; }
   statusClass(status: string) { return `status-${status || 'PENDIENTE'}`; }
   cleanFile(file: string) { return !file || file === 'string' ? 'Sin archivo informado' : file; }
@@ -668,14 +776,18 @@ export class AppComponent {
         localStorage.setItem('role', d.role || '');
         localStorage.setItem('providerName', d.providerName || '');
         this.token = d.token; this.username = d.username; this.fullName = d.fullName || ''; this.role = d.role || ''; this.providerName = d.providerName || '';
-        this.go('dashboard'); this.toast('Autenticado correctamente');
+        this.go(this.defaultViewForRole()); this.toast('Autenticado correctamente');
       },
       error: () => this.error = 'Credenciales no válidas o servicio no disponible.'
     });
   }
   logout() { localStorage.clear(); this.token = null; this.password = ''; this.view = 'dashboard'; }
-  go(v: any) { this.view = v; this.refreshCurrent(); }
-  refreshCurrent() { if (this.view === 'dashboard') this.loadDashboard(); if (this.view === 'atenciones') this.loadAtenciones(); if (this.view === 'eventos') this.loadEventos(); if (this.view === 'errores') this.loadErrores(); if (this.view === 'usuarios') this.loadUsers(); if (this.view === 'gestion') this.loadGestion(); }
+  go(v: any) {
+    const target = this.canAccessView(v) ? v : this.defaultViewForRole();
+    this.view = target;
+    this.refreshCurrent();
+  }
+  refreshCurrent() { if (this.view === 'dashboard') this.loadDashboard(); if (this.view === 'atenciones') this.loadAtenciones(); if (this.view === 'eventos') this.loadEventos(); if (this.view === 'errores') this.loadErrores(); if (this.view === 'usuarios') this.loadUsers(); if (this.view === 'gestion') this.loadGestion(); if (this.view === 'pantallaAps') this.loadPantallaAps(); }
   toast(message: string) { this.snack.open(message, 'OK', { duration: 2600 }); }
 
   loadDashboard() { this.http.get<any>(`${API}/dau/dashboard`).subscribe(r => this.dash = r.data); }
@@ -834,6 +946,42 @@ export class AppComponent {
       },
       error: () => this.toast('No fue posible exportar CSV')
     });
+  }
+
+
+  loadPantallaAps(showToast = true) {
+    const params = new HttpParams().set('establecimiento', String(this.pantallaEstablecimiento));
+    this.http.get<any>(`${API}/pantallas/aps`, { params }).subscribe({
+      next: r => {
+        this.pantallaAps = r.data || {};
+        this.pantallaPage = Math.min(this.pantallaPage, Math.max(this.pantallaTotalPages - 1, 0));
+      },
+      error: e => { if (showToast) this.toast(e?.error?.message || 'No fue posible cargar pantalla APS'); }
+    });
+  }
+  get pantallaRows() {
+    const rows = this.pantallaAps?.pacientes || [];
+    const start = this.pantallaPage * this.pantallaPageSize;
+    return rows.slice(start, start + this.pantallaPageSize);
+  }
+  get pantallaTotalPages() {
+    const total = this.pantallaAps?.pacientes?.length || 0;
+    return Math.max(Math.ceil(total / this.pantallaPageSize), 1);
+  }
+  get pantallaPages() { return Array.from({length: this.pantallaTotalPages}, (_, i) => i).slice(0, 8); }
+  nextPantallaPage() { this.pantallaPage = (this.pantallaPage + 1) % this.pantallaTotalPages; }
+  prevPantallaPage() { this.pantallaPage = this.pantallaPage <= 0 ? this.pantallaTotalPages - 1 : this.pantallaPage - 1; }
+  categoryCss(cat: string) { return 'cat-' + String(cat || 'SC').replace('/', '').toLowerCase(); }
+  get pantallaCharts() {
+    const make = (title: string, icon: string, items: any[]) => {
+      const max = Math.max(...(items || []).map(i => Number(i.total || 0)), 1);
+      return { title, icon, items: (items || []).slice(0, 5).map(i => ({ ...i, width: Math.max((Number(i.total || 0) / max) * 100, 4) })) };
+    };
+    return [
+      make('Distribución por establecimiento', 'apartment', this.pantallaAps?.distribucionPorEstablecimiento || []),
+      make('Distribución por categorización', 'donut_large', this.pantallaAps?.distribucionPorCategoria || []),
+      make('Pacientes por tramo horario', 'bar_chart', this.pantallaAps?.distribucionPorTramoHorario || [])
+    ];
   }
 
   loadUsers(page = this.userPage) {
