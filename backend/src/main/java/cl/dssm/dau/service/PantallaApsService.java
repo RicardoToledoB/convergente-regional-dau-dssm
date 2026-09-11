@@ -86,11 +86,14 @@ public class PantallaApsService {
 
 
     /**
-     * Pantalla APS v4.4.9: vigencia estricta por estado consolidado.
+     * Pantalla APS v4.4.9.2:
      *
-     * ADMISION, CATEGORIZADA y ATENCION_MEDICA permanecen activos hasta recibir
-     * datos explícitos de cierre que consoliden ALTA_MEDICA. No se aplican
-     * vencimientos artificiales por horas.
+     * La consolidación clínica permanece estricta según contrato JSON, pero la
+     * visualización operacional aplica una ventana de seguridad de 24 horas desde
+     * el último evento recibido para evitar que atenciones sin cierre transmitido
+     * permanezcan indefinidamente en la pantalla.
+     *
+     * Esta regla NO modifica el estado consolidado ni genera altas artificiales.
      */
     private boolean esActivoOperacional(DauAttentionEntity a, LocalDateTime now) {
         if (a == null || a.getEstadoActual() == null) return false;
@@ -98,7 +101,14 @@ public class PantallaApsService {
         if (trimToNull(a.getFechaAlta()) != null && trimToNull(a.getHoraAlta()) != null) return false;
 
         LocalDateTime adm = parseFechaHora(a.getFechaAdminision(), a.getHoraAdmision());
-        return adm != null && !adm.isAfter(now);
+        if (adm == null || adm.isAfter(now)) return false;
+
+        // En admisión sin idAtencion real, se mantiene visible mientras está dentro de la ventana.
+        LocalDateTime referencia = a.getFechaUltimoEvento() != null ? a.getFechaUltimoEvento() : adm;
+        if (referencia.isAfter(now)) return false;
+
+        long minutos = Duration.between(referencia, now).toMinutes();
+        return minutos >= 0 && minutos <= 24 * 60;
     }
 
     private boolean estaEnAtencion(DauAttentionEntity a) {
