@@ -258,35 +258,41 @@ class DetailDialogComponent {
     MatTooltipModule
   ],
   template: `
-    <mat-sidenav-container class="shell">
-      <mat-sidenav *ngIf="!isVisorAps()" [mode]="isMobile ? 'over' : 'side'" [opened]="!isMobile || mobileMenuOpen" class="sidenav">
+    <mat-sidenav-container class="shell" autosize>
+      <mat-sidenav *ngIf="!isVisorAps()" [mode]="isMobile ? 'over' : 'side'" [opened]="!isMobile || mobileMenuOpen" class="sidenav" [class.collapsed]="sidebarCollapsed && !isMobile">
         <div class="brand-panel">
           <div class="brand-mark">D</div>
-          <div>
+          <div class="brand-copy">
             <h1>DAU DSSM</h1>
             <p>Convergente Regional de Urgencia</p>
           </div>
+          <button mat-icon-button class="sidebar-toggle" *ngIf="!isMobile" (click)="toggleSidebar()" [matTooltip]="sidebarCollapsed ? 'Expandir menú' : 'Contraer menú'">
+            <mat-icon>{{sidebarCollapsed ? 'chevron_right' : 'chevron_left'}}</mat-icon>
+          </button>
           <button mat-icon-button class="mobile-close" *ngIf="isMobile" (click)="mobileMenuOpen = false"><mat-icon>close</mat-icon></button>
         </div>
 
-        <div class="profile-card" *ngIf="token">
-          <span class="profile-label">Usuario conectado</span>
-          <strong>{{fullName || username}}</strong>
-          <small>{{role}}<ng-container *ngIf="providerName"> · {{providerName}}</ng-container></small>
+        <div class="profile-card" *ngIf="token" [matTooltip]="sidebarCollapsed ? (fullName || username) : ''">
+          <mat-icon class="profile-mini-icon">account_circle</mat-icon>
+          <div class="profile-copy">
+            <span class="profile-label">Usuario conectado</span>
+            <strong>{{fullName || username}}</strong>
+            <small>{{role}}<ng-container *ngIf="providerName"> · {{providerName}}</ng-container></small>
+          </div>
         </div>
 
         <nav class="nav" *ngIf="token">
-          <button mat-button *ngIf="canUseMainModules()" [class.active]="view==='dashboard'" (click)="go('dashboard'); closeMobileMenu()"><mat-icon>dashboard</mat-icon><span>Dashboard</span></button>
-          <button mat-button *ngIf="canUseMainModules()" [class.active]="view==='atenciones'" (click)="go('atenciones'); closeMobileMenu()"><mat-icon>monitor_heart</mat-icon><span>Monitor DAU</span></button>
-          <button mat-button *ngIf="canUseMainModules()" [class.active]="view==='eventos'" (click)="go('eventos'); closeMobileMenu()"><mat-icon>receipt_long</mat-icon><span>Eventos</span></button>
-          <button mat-button [class.active]="view==='errores'" *ngIf="canAudit()" (click)="go('errores'); closeMobileMenu()"><mat-icon>report_problem</mat-icon><span>Errores</span></button>
-          <button mat-button [class.active]="view==='usuarios'" *ngIf="isAdmin()" (click)="go('usuarios'); closeMobileMenu()"><mat-icon>manage_accounts</mat-icon><span>Usuarios</span></button>
-          <button mat-button *ngIf="canUseMainModules()" [class.active]="view==='gestion'" (click)="go('gestion'); closeMobileMenu()"><mat-icon>analytics</mat-icon><span>Gestión Red</span></button>
-          <button mat-button *ngIf="canUsePantallaAps()" [class.active]="view==='pantallaAps'" (click)="go('pantallaAps'); closeMobileMenu()"><mat-icon>tv</mat-icon><span>Pantalla APS</span></button>
+          <button mat-button *ngIf="canUseMainModules()" [class.active]="view==='dashboard'" [matTooltip]="sidebarCollapsed ? 'Dashboard' : ''" matTooltipPosition="right" (click)="go('dashboard'); closeMobileMenu()"><mat-icon>dashboard</mat-icon><span>Dashboard</span></button>
+          <button mat-button *ngIf="canUseMainModules()" [class.active]="view==='atenciones'" [matTooltip]="sidebarCollapsed ? 'Monitor DAU' : ''" matTooltipPosition="right" (click)="go('atenciones'); closeMobileMenu()"><mat-icon>monitor_heart</mat-icon><span>Monitor DAU</span></button>
+          <button mat-button *ngIf="canUseMainModules()" [class.active]="view==='eventos'" [matTooltip]="sidebarCollapsed ? 'Eventos' : ''" matTooltipPosition="right" (click)="go('eventos'); closeMobileMenu()"><mat-icon>receipt_long</mat-icon><span>Eventos</span></button>
+          <button mat-button [class.active]="view==='errores'" [matTooltip]="sidebarCollapsed ? 'Errores' : ''" matTooltipPosition="right" *ngIf="canAudit()" (click)="go('errores'); closeMobileMenu()"><mat-icon>report_problem</mat-icon><span>Errores</span></button>
+          <button mat-button [class.active]="view==='usuarios'" [matTooltip]="sidebarCollapsed ? 'Usuarios' : ''" matTooltipPosition="right" *ngIf="isAdmin()" (click)="go('usuarios'); closeMobileMenu()"><mat-icon>manage_accounts</mat-icon><span>Usuarios</span></button>
+          <button mat-button *ngIf="canUseMainModules()" [class.active]="view==='gestion'" [matTooltip]="sidebarCollapsed ? 'Gestión Red' : ''" matTooltipPosition="right" (click)="go('gestion'); closeMobileMenu()"><mat-icon>analytics</mat-icon><span>Gestión Red</span></button>
+          <button mat-button *ngIf="canUsePantallaAps()" [class.active]="view==='pantallaAps'" [matTooltip]="sidebarCollapsed ? 'Pantalla APS' : ''" matTooltipPosition="right" (click)="go('pantallaAps'); closeMobileMenu()"><mat-icon>tv</mat-icon><span>Pantalla APS</span></button>
         </nav>
 
         <div class="sidenav-footer" *ngIf="token">
-          <button mat-stroked-button class="logout-button" (click)="logout()"><mat-icon>logout</mat-icon>Salir</button>
+          <button mat-stroked-button class="logout-button" (click)="logout()" [matTooltip]="sidebarCollapsed ? 'Salir' : ''" matTooltipPosition="right"><mat-icon>logout</mat-icon><span>Salir</span></button>
         </div>
       </mat-sidenav>
 
@@ -334,11 +340,39 @@ class DetailDialogComponent {
 
             <div class="section-header" style="margin-top: 24px;"><div><h3>Seguimiento de DAU abiertos sin nuevos eventos</h3><p>Indicador administrativo calculado desde la última novedad recibida. No modifica ni cierra atenciones.</p></div></div>
             <div class="kpi-grid">
-              <mat-card class="kpi-card"><mat-card-content><mat-icon>schedule</mat-icon><strong>{{dash?.sinEventos3h || 0}}</strong><span>Sin eventos &gt; 3 h</span></mat-card-content></mat-card>
-              <mat-card class="kpi-card"><mat-card-content><mat-icon>schedule</mat-icon><strong>{{dash?.sinEventos6h || 0}}</strong><span>Sin eventos &gt; 6 h</span></mat-card-content></mat-card>
-              <mat-card class="kpi-card"><mat-card-content><mat-icon>warning_amber</mat-icon><strong>{{dash?.sinEventos12h || 0}}</strong><span>Sin eventos &gt; 12 h</span></mat-card-content></mat-card>
-              <mat-card class="kpi-card danger"><mat-card-content><mat-icon>report_problem</mat-icon><strong>{{dash?.sinEventos24h || 0}}</strong><span>Sin eventos &gt; 24 h</span></mat-card-content></mat-card>
+              <mat-card class="kpi-card clickable-kpi" (click)="openSinEventos(3)"><mat-card-content><mat-icon>schedule</mat-icon><strong>{{dash?.sinEventos3h || 0}}</strong><span>Sin eventos &gt; 3 h</span><small>Ver detalle</small></mat-card-content></mat-card>
+              <mat-card class="kpi-card clickable-kpi" (click)="openSinEventos(6)"><mat-card-content><mat-icon>schedule</mat-icon><strong>{{dash?.sinEventos6h || 0}}</strong><span>Sin eventos &gt; 6 h</span><small>Ver detalle</small></mat-card-content></mat-card>
+              <mat-card class="kpi-card clickable-kpi" (click)="openSinEventos(12)"><mat-card-content><mat-icon>warning_amber</mat-icon><strong>{{dash?.sinEventos12h || 0}}</strong><span>Sin eventos &gt; 12 h</span><small>Ver detalle</small></mat-card-content></mat-card>
+              <mat-card class="kpi-card danger clickable-kpi" (click)="openSinEventos(24)"><mat-card-content><mat-icon>report_problem</mat-icon><strong>{{dash?.sinEventos24h || 0}}</strong><span>Sin eventos &gt; 24 h</span><small>Ver detalle</small></mat-card-content></mat-card>
             </div>
+          </section>
+
+          <section *ngIf="token && view==='sinEventos' && canUseMainModules()" class="page-section">
+            <div class="section-header">
+              <div><h2>DAU abiertos sin nuevos eventos</h2><p>Atenciones abiertas cuya última novedad recibida supera {{sinEventosHoras}} horas. Indicador de monitoreo; no modifica estados.</p></div>
+              <button mat-stroked-button (click)="go('dashboard')"><mat-icon>arrow_back</mat-icon>Volver al Dashboard</button>
+            </div>
+            <div class="stale-summary-grid">
+              <mat-card class="stale-summary-card" *ngFor="let item of sinEventosResumen">
+                <mat-icon>apartment</mat-icon>
+                <div><strong>{{item.total}}</strong><span>{{item.establecimiento}}</span></div>
+              </mat-card>
+              <div class="empty-summary" *ngIf="!sinEventosResumen.length">Sin registros para el tramo seleccionado.</div>
+            </div>
+            <mat-card class="table-card">
+              <div class="stale-table-head"><strong>Detalle &gt; {{sinEventosHoras}} h</strong><span>{{sinEventosTotal}} registros</span></div>
+              <table mat-table [dataSource]="sinEventosRows">
+                <ng-container matColumnDef="idDau"><th mat-header-cell *matHeaderCellDef>ID DAU</th><td mat-cell *matCellDef="let a"><strong>{{a.idDau}}</strong><small>{{a.idAtencion}}</small></td></ng-container>
+                <ng-container matColumnDef="establecimiento"><th mat-header-cell *matHeaderCellDef>Establecimiento</th><td mat-cell *matCellDef="let a">{{displayEstablecimiento(a.codigoEstablecimiento)}}</td></ng-container>
+                <ng-container matColumnDef="estado"><th mat-header-cell *matHeaderCellDef>Estado</th><td mat-cell *matCellDef="let a"><span class="status-chip" [ngClass]="statusClass(a.estadoActual)">{{displayEstado(a.estadoActual)}}</span></td></ng-container>
+                <ng-container matColumnDef="categoria"><th mat-header-cell *matHeaderCellDef>Cat.</th><td mat-cell *matCellDef="let a">{{displayCategoria(a.ultimaCategorizacion || a.primeraCategorizacion)}}</td></ng-container>
+                <ng-container matColumnDef="ultimo"><th mat-header-cell *matHeaderCellDef>Último evento</th><td mat-cell *matCellDef="let a">{{a.fechaUltimoEvento | date:'dd-MM-yyyy HH:mm'}}</td></ng-container>
+                <ng-container matColumnDef="horas"><th mat-header-cell *matHeaderCellDef>Sin novedades</th><td mat-cell *matCellDef="let a"><strong>{{horasSinEventos(a.fechaUltimoEvento)}} h</strong></td></ng-container>
+                <ng-container matColumnDef="acciones"><th mat-header-cell *matHeaderCellDef></th><td mat-cell *matCellDef="let a"><button mat-stroked-button class="table-action" (click)="openDetalle(a)"><mat-icon>visibility</mat-icon>Ver</button></td></ng-container>
+                <tr mat-header-row *matHeaderRowDef="sinEventosCols"></tr><tr mat-row *matRowDef="let row; columns: sinEventosCols;"></tr>
+              </table>
+              <mat-paginator [length]="sinEventosTotal" [pageIndex]="sinEventosPage" [pageSize]="sinEventosSize" [pageSizeOptions]="[10,20,50,100]" (page)="onSinEventosPage($event)"></mat-paginator>
+            </mat-card>
           </section>
 
           <section *ngIf="token && view==='atenciones' && canUseMainModules()" class="page-section">
@@ -565,13 +599,12 @@ class DetailDialogComponent {
                 <mat-form-field appearance="outline" class="aps-select">
                   <mat-label>Establecimiento</mat-label>
                   <mat-select [(ngModel)]="pantallaEstablecimiento" (selectionChange)="loadPantallaAps()">
+                    <mat-option [value]="null">Red completa / Todos los establecimientos</mat-option>
                     <mat-option *ngFor="let e of pantallaEstablecimientos" [value]="e.value">{{e.label}}</mat-option>
                   </mat-select>
                 </mat-form-field>
-                <div class="aps-quick-tabs">
-                  <button mat-stroked-button *ngFor="let e of pantallaEstablecimientos.slice(0,4)" [class.active]="pantallaEstablecimiento===e.value" (click)="pantallaEstablecimiento=e.value; loadPantallaAps()">{{e.short || e.label}}</button>
-                </div>
-                <button mat-icon-button matTooltip="Actualizar" (click)="loadPantallaAps()"><mat-icon>refresh</mat-icon></button>
+                <div class="aps-selector-spacer"></div>
+                <button mat-icon-button matTooltip="Recargar" (click)="reloadPantallaAps()"><mat-icon>refresh</mat-icon></button>
               </mat-card>
 
               <div class="aps-kpi-row">
@@ -676,10 +709,11 @@ export class AppComponent {
   role = localStorage.getItem('role') || '';
   providerName = localStorage.getItem('providerName') || '';
   error = '';
-  view: 'dashboard'|'atenciones'|'eventos'|'errores'|'usuarios'|'gestion'|'pantallaAps' = 'dashboard';
+  view: 'dashboard'|'sinEventos'|'atenciones'|'eventos'|'errores'|'usuarios'|'gestion'|'pantallaAps' = 'dashboard';
   loading = false;
   isMobile = window.innerWidth <= 900;
   mobileMenuOpen = false;
+  sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
 
   @HostListener('window:resize')
   onResize() {
@@ -687,6 +721,7 @@ export class AppComponent {
     if (!this.isMobile) this.mobileMenuOpen = false;
   }
   closeMobileMenu() { if (this.isMobile) this.mobileMenuOpen = false; }
+  toggleSidebar() { this.sidebarCollapsed = !this.sidebarCollapsed; localStorage.setItem('sidebarCollapsed', String(this.sidebarCollapsed)); }
 
   dash: any;
   estados = ['ADMISION', 'CATEGORIZADA', 'ATENCION_MEDICA', 'ALTA_MEDICA'];
@@ -694,12 +729,14 @@ export class AppComponent {
   roles = ['ADMIN', 'INTEGRADOR', 'GESTOR_RED', 'VISUALIZADOR', 'AUDITOR', 'VISOR_APS'];
 
   attCols = ['idDau', 'establecimiento', 'admision', 'motivo', 'cat', 'estado', 'acciones'];
+  sinEventosCols = ['idDau', 'establecimiento', 'estado', 'categoria', 'ultimo', 'horas', 'acciones'];
   eventCols = ['fecha', 'idDau', 'evento', 'estado', 'hash', 'archivo', 'acciones'];
   errorCols = ['fecha', 'idDau', 'error', 'archivo', 'acciones'];
   userCols = ['username', 'fullName', 'providerName', 'role', 'enabled', 'lastLogin', 'acciones'];
   gestionCols = ['idDau', 'establecimiento', 'periodo', 'motivo', 'categoria', 'estado', 'minutos'];
 
   atenciones: any[] = []; attTotal = 0;
+  sinEventosRows: any[] = []; sinEventosResumen: any[] = []; sinEventosTotal = 0; sinEventosHoras = 24; sinEventosPage = 0; sinEventosSize = 20;
   eventos: any[] = []; evtTotal = 0;
   errores: any[] = []; errTotal = 0;
   usuarios: any[] = []; userTotal = 0; userPage = 0; userSize = 20;
@@ -718,30 +755,23 @@ export class AppComponent {
   newUser: any = { username: '', password: '', fullName: '', email: '', providerName: '', role: 'VISUALIZADOR', enabled: true };
   gestionF: any = { dispositivos: [], establecimientos: [], sexos: [], categorias: [], origenes: [], gruposDiagnostico: [], tramosHorarios: [], edadDesde: '', edadHasta: '', fechaDesde: '', fechaHasta: '', agruparPor: 'DIA', page: 0, size: 20 };
   pantallaNow = new Date();
-  pantallaEstablecimiento = 126801;
+  pantallaEstablecimiento: number | null = null;
   pantallaAps: any = null;
   pantallaOnline = true;
   pantallaLastOk: Date | null = null;
   pantallaPage = 0;
   pantallaPageSize = 8;
-  pantallaEstablecimientos = [
-    {value: 126801, label: '126801 - SAR Juan Damianovic', short: 'SAR Juan Damianovic'},
-    {value: 126900, label: '126900 - APS / Urgencia', short: 'APS / Urgencia'},
-    {value: 126100, label: '126100 - HCM', short: 'HCM'},
-    {value: 121105, label: '121105 - Puerto Natales', short: 'Puerto Natales'},
-    {value: 121110, label: '121110 - Porvenir', short: 'Porvenir'},
-    {value: 121120, label: '121120 - Puerto Williams', short: 'Puerto Williams'}
-  ];
+  pantallaEstablecimientos: any[] = [];
 
   get title() {
-    return ({ dashboard: 'Dashboard operacional', atenciones: 'Monitor DAU', eventos: 'Bitácora de eventos', errores: 'Errores de integración', usuarios: 'Administración de usuarios', gestion: 'Gestión Red de Urgencia', pantallaAps: 'Pantalla APS' } as any)[this.view];
+    return ({ dashboard: 'Dashboard operacional', sinEventos: 'DAU sin nuevos eventos', atenciones: 'Monitor DAU', eventos: 'Bitácora de eventos', errores: 'Errores de integración', usuarios: 'Administración de usuarios', gestion: 'Gestión Red de Urgencia', pantallaAps: 'Pantalla APS' } as any)[this.view];
   }
   get subtitle() {
-    return ({ dashboard: 'Resumen regional', atenciones: 'Atenciones consolidadas', eventos: 'Trazabilidad técnica', errores: 'Control de rechazos', usuarios: 'Cuentas y roles', gestion: 'Reportería avanzada', pantallaAps: 'Vista pública para establecimientos' } as any)[this.view];
+    return ({ dashboard: 'Resumen regional', sinEventos: 'Seguimiento administrativo', atenciones: 'Atenciones consolidadas', eventos: 'Trazabilidad técnica', errores: 'Control de rechazos', usuarios: 'Cuentas y roles', gestion: 'Reportería avanzada', pantallaAps: 'Vista pública para establecimientos' } as any)[this.view];
   }
   get apiHost() { return API.replace('/api', '').replace('https://', '').replace('http://', ''); }
 
-  ngOnInit() { if (this.token) { this.go(this.defaultViewForRole()); } setInterval(() => { this.pantallaNow = new Date(); if (this.token && this.view === 'pantallaAps') this.loadPantallaAps(false); }, 15000); setInterval(() => { if (this.token && this.view === 'pantallaAps' && this.pantallaTotalPages > 1) this.nextPantallaPage(); }, 12000); }
+  ngOnInit() { if (this.token) { this.loadPantallaEstablecimientos(); this.go(this.defaultViewForRole()); } setInterval(() => { this.pantallaNow = new Date(); if (this.token && this.view === 'pantallaAps') this.loadPantallaAps(false); }, 15000); setInterval(() => { if (this.token && this.view === 'pantallaAps' && this.pantallaTotalPages > 1) this.nextPantallaPage(); }, 12000); }
   isAdmin() { return this.role === 'ADMIN'; }
   isVisorAps() { return this.role === 'VISOR_APS'; }
   canUseMainModules() { return !this.isVisorAps(); }
@@ -791,16 +821,28 @@ export class AppComponent {
       error: () => this.error = 'Credenciales no válidas o servicio no disponible.'
     });
   }
-  logout() { localStorage.clear(); this.token = null; this.password = ''; this.view = 'dashboard'; }
+  logout() { const collapsed = localStorage.getItem('sidebarCollapsed'); localStorage.clear(); if (collapsed !== null) localStorage.setItem('sidebarCollapsed', collapsed); this.token = null; this.password = ''; this.view = 'dashboard'; }
   go(v: any) {
     const target = this.canAccessView(v) ? v : this.defaultViewForRole();
     this.view = target;
     this.refreshCurrent();
   }
-  refreshCurrent() { if (this.view === 'dashboard') this.loadDashboard(); if (this.view === 'atenciones') this.loadAtenciones(); if (this.view === 'eventos') this.loadEventos(); if (this.view === 'errores') this.loadErrores(); if (this.view === 'usuarios') this.loadUsers(); if (this.view === 'gestion') this.loadGestion(); if (this.view === 'pantallaAps') this.loadPantallaAps(); }
+  refreshCurrent() { if (this.view === 'dashboard') this.loadDashboard(); if (this.view === 'sinEventos') this.loadSinEventos(); if (this.view === 'atenciones') this.loadAtenciones(); if (this.view === 'eventos') this.loadEventos(); if (this.view === 'errores') this.loadErrores(); if (this.view === 'usuarios') this.loadUsers(); if (this.view === 'gestion') this.loadGestion(); if (this.view === 'pantallaAps') this.loadPantallaAps(); }
   toast(message: string) { this.snack.open(message, 'OK', { duration: 2600 }); }
 
   loadDashboard() { this.http.get<any>(`${API}/dau/dashboard`).subscribe(r => this.dash = r.data); }
+
+  openSinEventos(horas: number) {
+    this.sinEventosHoras = horas; this.sinEventosPage = 0; this.view = 'sinEventos'; this.loadSinEventos();
+  }
+  loadSinEventos(page = this.sinEventosPage) {
+    this.sinEventosPage = page;
+    const params = new HttpParams().set('horas', this.sinEventosHoras).set('page', this.sinEventosPage).set('size', this.sinEventosSize);
+    this.http.get<any>(`${API}/dau/sin-eventos`, { params }).subscribe(r => { const p = pageData(r); this.sinEventosRows = p.rows; this.sinEventosTotal = p.total; });
+    this.http.get<any>(`${API}/dau/sin-eventos/resumen`, { params: new HttpParams().set('horas', this.sinEventosHoras) }).subscribe(r => this.sinEventosResumen = r.data || []);
+  }
+  onSinEventosPage(e: PageEvent) { this.sinEventosPage = e.pageIndex; this.sinEventosSize = e.pageSize; this.loadSinEventos(); }
+  horasSinEventos(fecha: any) { if (!fecha) return 0; const d = new Date(fecha); if (isNaN(d.getTime())) return 0; return Math.max(Math.floor((Date.now() - d.getTime()) / 3600000), 0); }
 
   loadAtenciones(page = this.attF.page) {
     this.attF.page = page;
@@ -959,8 +1001,20 @@ export class AppComponent {
   }
 
 
+  loadPantallaEstablecimientos() {
+    this.http.get<any>(`${API}/dau/establecimientos`).subscribe({
+      next: r => {
+        this.pantallaEstablecimientos = (r.data || []).map((e: any) => ({ value: e.codigo, label: e.nombre }));
+        const existentes = new Set(this.establecimientos.map((e: any) => String(e.value)));
+        this.pantallaEstablecimientos.forEach((e: any) => { if (!existentes.has(String(e.value))) this.establecimientos.push({ value: e.value, label: e.label }); });
+      },
+      error: () => this.pantallaEstablecimientos = []
+    });
+  }
+  reloadPantallaAps() { this.loadPantallaEstablecimientos(); this.loadPantallaAps(); }
   loadPantallaAps(showToast = true) {
-    const params = new HttpParams().set('establecimiento', String(this.pantallaEstablecimiento));
+    let params = new HttpParams();
+    if (this.pantallaEstablecimiento !== null && this.pantallaEstablecimiento !== undefined) params = params.set('establecimiento', String(this.pantallaEstablecimiento));
     this.http.get<any>(`${API}/pantallas/aps`, { params }).subscribe({
       next: r => {
         this.pantallaAps = r.data || {};

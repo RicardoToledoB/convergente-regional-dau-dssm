@@ -1,6 +1,7 @@
 package cl.dssm.dau.service;
 
 import cl.dssm.dau.dto.PantallaApsResponse;
+import cl.dssm.dau.dto.EstablecimientoPantallaResponse;
 import cl.dssm.dau.entity.DauAttentionEntity;
 import cl.dssm.dau.model.DauEstado;
 import cl.dssm.dau.repository.DauAttentionRepository;
@@ -26,6 +27,13 @@ public class PantallaApsService {
 
     private static final DateTimeFormatter FECHA_DAU = DateTimeFormatter.ofPattern("ddMMyyyy");
     private static final DateTimeFormatter FECHA_HORA = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
+
+    public List<EstablecimientoPantallaResponse> getEstablecimientos() {
+        return attentions.findDistinctCodigosEstablecimiento().stream()
+                .filter(Objects::nonNull)
+                .map(codigo -> new EstablecimientoPantallaResponse(codigo, displayEstablecimiento(codigo)))
+                .toList();
+    }
 
     public PantallaApsResponse getPantalla(Integer codigoEstablecimiento) {
         List<DauAttentionEntity> candidatos = codigoEstablecimiento == null
@@ -66,7 +74,7 @@ public class PantallaApsService {
 
         return new PantallaApsResponse(
                 codigoEstablecimiento,
-                codigoEstablecimiento == null ? "Red APS" : displayEstablecimiento(codigoEstablecimiento),
+                codigoEstablecimiento == null ? "Red completa" : displayEstablecimiento(codigoEstablecimiento),
                 now.format(FECHA_HORA),
                 enEspera,
                 enAtencion,
@@ -169,7 +177,7 @@ public class PantallaApsService {
 
     private String displayTramo(String t) { return switch (t) { case "08-12" -> "08 a 12"; case "12-16" -> "12 a 16"; case "16-20" -> "16 a 20"; case "20-24" -> "20 a 24"; case "00-08" -> "00 a 08"; default -> "Sin dato"; }; }
 
-    private String displayEstablecimiento(Integer codigo) {
+    public String displayEstablecimiento(Integer codigo) {
         if (codigo == null) return "Sin establecimiento";
 
         return switch (codigo) {

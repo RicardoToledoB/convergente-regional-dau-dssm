@@ -72,4 +72,43 @@ public interface DauAttentionRepository extends JpaRepository<DauAttentionEntity
               AND TIMESTAMPDIFF(MINUTE, a.fecha_ultimo_evento, NOW()) > (:hours * 60)
             """, nativeQuery = true)
     long countAbiertosSinEventosPorHoras(@Param("hours") int hours);
+
+    @Query(value = """
+            SELECT DISTINCT a.codigo_establecimiento
+            FROM dau_atenciones_consolidadas a
+            WHERE a.codigo_establecimiento IS NOT NULL
+            ORDER BY a.codigo_establecimiento
+            """, nativeQuery = true)
+    List<Integer> findDistinctCodigosEstablecimiento();
+
+    @Query(value = """
+            SELECT *
+            FROM dau_atenciones_consolidadas a
+            WHERE a.estado_actual IN ('ADMISION', 'CATEGORIZADA', 'ATENCION_MEDICA')
+              AND (a.fecha_alta IS NULL OR TRIM(a.fecha_alta) = '')
+              AND a.fecha_ultimo_evento IS NOT NULL
+              AND TIMESTAMPDIFF(MINUTE, a.fecha_ultimo_evento, NOW()) > (:hours * 60)
+            ORDER BY a.fecha_ultimo_evento ASC
+            """,
+            countQuery = """
+            SELECT COUNT(*)
+            FROM dau_atenciones_consolidadas a
+            WHERE a.estado_actual IN ('ADMISION', 'CATEGORIZADA', 'ATENCION_MEDICA')
+              AND (a.fecha_alta IS NULL OR TRIM(a.fecha_alta) = '')
+              AND a.fecha_ultimo_evento IS NOT NULL
+              AND TIMESTAMPDIFF(MINUTE, a.fecha_ultimo_evento, NOW()) > (:hours * 60)
+            """, nativeQuery = true)
+    Page<DauAttentionEntity> findAbiertosSinEventosPorHoras(@Param("hours") int hours, Pageable pageable);
+
+    @Query(value = """
+            SELECT a.codigo_establecimiento, COUNT(*) AS total
+            FROM dau_atenciones_consolidadas a
+            WHERE a.estado_actual IN ('ADMISION', 'CATEGORIZADA', 'ATENCION_MEDICA')
+              AND (a.fecha_alta IS NULL OR TRIM(a.fecha_alta) = '')
+              AND a.fecha_ultimo_evento IS NOT NULL
+              AND TIMESTAMPDIFF(MINUTE, a.fecha_ultimo_evento, NOW()) > (:hours * 60)
+            GROUP BY a.codigo_establecimiento
+            ORDER BY total DESC, a.codigo_establecimiento
+            """, nativeQuery = true)
+    List<Object[]> countAbiertosSinEventosPorEstablecimiento(@Param("hours") int hours);
 }

@@ -2,6 +2,11 @@ package cl.dssm.dau.controller;
 
 import cl.dssm.dau.dto.ApiResponse;
 import cl.dssm.dau.dto.DashboardResponse;
+import cl.dssm.dau.dto.SinEventosEstablecimientoResponse;
+import cl.dssm.dau.dto.EstablecimientoPantallaResponse;
+import cl.dssm.dau.service.PantallaApsService;
+
+import java.util.List;
 import cl.dssm.dau.entity.DauAttentionEntity;
 import cl.dssm.dau.entity.DauEventEntity;
 import cl.dssm.dau.model.DauEstado;
@@ -21,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 public class DauMonitoringController {
     private final DauAttentionRepository attentions;
     private final DauEventRepository events;
+    private final PantallaApsService pantallaApsService;
 
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
@@ -43,6 +49,37 @@ public class DauMonitoringController {
                 attentions.countAbiertosSinEventosPorHoras(24)
         );
         return new ApiResponse<>(true, "Dashboard", data);
+    }
+
+    @GetMapping("/establecimientos")
+    public ApiResponse<List<EstablecimientoPantallaResponse>> establecimientos() {
+        return new ApiResponse<>(true, "Establecimientos disponibles", pantallaApsService.getEstablecimientos());
+    }
+
+    @GetMapping("/sin-eventos")
+    public ApiResponse<Page<DauAttentionEntity>> sinEventos(
+            @RequestParam(defaultValue = "24") int horas,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        int safeHours = Math.max(horas, 1);
+        var pageable = PageRequest.of(page, Math.min(Math.max(size, 1), 100));
+        return new ApiResponse<>(true, "DAU abiertos sin nuevos eventos",
+                attentions.findAbiertosSinEventosPorHoras(safeHours, pageable));
+    }
+
+    @GetMapping("/sin-eventos/resumen")
+    public ApiResponse<List<SinEventosEstablecimientoResponse>> sinEventosResumen(
+            @RequestParam(defaultValue = "24") int horas) {
+        int safeHours = Math.max(horas, 1);
+        var data = attentions.countAbiertosSinEventosPorEstablecimiento(safeHours).stream()
+                .map(row -> {
+                    Integer codigo = row[0] == null ? null : ((Number) row[0]).intValue();
+                    long total = row[1] == null ? 0L : ((Number) row[1]).longValue();
+                    return new SinEventosEstablecimientoResponse(
+                            codigo, pantallaApsService.displayEstablecimiento(codigo), total);
+                })
+                .toList();
+        return new ApiResponse<>(true, "Resumen DAU sin eventos por establecimiento", data);
     }
 
     @GetMapping("/atenciones")
