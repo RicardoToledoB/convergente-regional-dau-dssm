@@ -95,7 +95,7 @@ public class PantallaApsService {
     private boolean esActivoOperacional(DauAttentionEntity a, LocalDateTime now) {
         if (a == null || a.getEstadoActual() == null) return false;
         if (a.getEstadoActual() == DauEstado.ALTA_MEDICA || a.getEstadoActual() == DauEstado.ERROR) return false;
-        if (notBlank(a.getFechaAlta()) && notBlank(a.getHoraAlta())) return false;
+        if (trimToNull(a.getFechaAlta()) != null && trimToNull(a.getHoraAlta()) != null) return false;
 
         LocalDateTime adm = parseFechaHora(a.getFechaAdminision(), a.getHoraAdmision());
         return adm != null && !adm.isAfter(now);
@@ -103,10 +103,10 @@ public class PantallaApsService {
 
     private boolean estaEnAtencion(DauAttentionEntity a) {
         if (a == null) return false;
-        if (notBlank(a.getFechaAlta()) && notBlank(a.getHoraAlta())) return false;
+        if (trimToNull(a.getFechaAlta()) != null && trimToNull(a.getHoraAlta()) != null) return false;
         return a.getEstadoActual() == DauEstado.ATENCION_MEDICA
-                && notBlank(a.getFechaAtencion())
-                && notBlank(a.getHoraAtencion());
+                && trimToNull(a.getFechaAtencion()) != null
+                && trimToNull(a.getHoraAtencion()) != null;
     }
 
     private boolean estaEnEspera(DauAttentionEntity a) {
