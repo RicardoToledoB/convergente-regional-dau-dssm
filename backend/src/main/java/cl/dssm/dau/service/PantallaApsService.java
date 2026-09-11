@@ -6,7 +6,6 @@ import cl.dssm.dau.entity.DauAttentionEntity;
 import cl.dssm.dau.model.DauEstado;
 import cl.dssm.dau.repository.DauAttentionRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -21,9 +20,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PantallaApsService {
     private final DauAttentionRepository attentions;
-
-    @Value("${pantalla.aps.max-active-hours:24}")
-    private long maxActiveHours;
 
     private static final DateTimeFormatter FECHA_DAU = DateTimeFormatter.ofPattern("ddMMyyyy");
     private static final DateTimeFormatter FECHA_HORA = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
@@ -89,17 +85,36 @@ public class PantallaApsService {
     }
 
 
+    /**
+     * Vigencia operacional para Pantalla APS (v4.4.6).
+     *
+     * La integración puede dejar DAU abiertos sin evento explícito de alta. Para no
+     * contaminar el consolidado ni inventar cierres, la pantalla sólo considera vigente
+     * una atención si:
+     *   - fue admitida durante el día actual; o
+     *   - recibió su último evento durante el día actual.
+     *
+     * Así se permite que una atención iniciada el día anterior siga visible cuando
+     * efectivamente continúa recibiendo actividad hoy, pero se evita arrastrar casos
+     * antiguos sin novedades. Esta regla afecta únicamente a la visualización APS.
+     */
     private boolean esActivoOperacional(DauAttentionEntity a, LocalDateTime now) {
         if (a == null || a.getEstadoActual() == null) return false;
         if (a.getEstadoActual() == DauEstado.ALTA_MEDICA || a.getEstadoActual() == DauEstado.ERROR) return false;
         if (a.getFechaAlta() != null && !a.getFechaAlta().isBlank()) return false;
 
         LocalDateTime adm = parseFechaHora(a.getFechaAdminision(), a.getHoraAdmision());
-        if (adm == null) return false;
+        if (adm == null || adm.isAfter(now)) return false;
 
-        long minutos = Duration.between(adm, now).toMinutes();
-        if (minutos < 0) return false;
-        return minutos <= Math.max(maxActiveHours, 1) * 60;
+        LocalDate hoy = now.toLocalDate();
+        boolean admisionHoy = adm.toLocalDate().equals(hoy);
+
+        LocalDateTime ultimoEvento = a.getFechaUltimoEvento();
+        boolean eventoHoy = ultimoEvento != null
+                && !ultimoEvento.isAfter(now)
+                && ultimoEvento.toLocalDate().equals(hoy);
+
+        return admisionHoy || eventoHoy;
     }
 
     private boolean estaEnAtencion(DauAttentionEntity a) {
