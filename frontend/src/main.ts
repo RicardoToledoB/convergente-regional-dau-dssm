@@ -1002,14 +1002,45 @@ export class AppComponent {
 
 
   loadPantallaEstablecimientos() {
-    this.http.get<any>(`${API}/dau/establecimientos`).subscribe({
+    this.http.get<any>(`${API}/pantallas/aps/establecimientos`).subscribe({
       next: r => {
-        this.pantallaEstablecimientos = (r.data || []).map((e: any) => ({ value: e.codigo, label: e.nombre }));
-        const existentes = new Set(this.establecimientos.map((e: any) => String(e.value)));
-        this.pantallaEstablecimientos.forEach((e: any) => { if (!existentes.has(String(e.value))) this.establecimientos.push({ value: e.value, label: e.label }); });
+        this.pantallaEstablecimientos = (r.data || [])
+          .filter((e: any) => e?.codigo !== null && e?.codigo !== undefined)
+          .map((e: any) => ({ value: Number(e.codigo), label: e.nombre || String(e.codigo) }));
+        this.syncEstablecimientosGenerales();
       },
-      error: () => this.pantallaEstablecimientos = []
+      error: () => {
+        // Respaldo: si el catálogo no responde, el payload de Red completa
+        // igualmente trae la distribución por establecimiento.
+        this.syncPantallaEstablecimientosDesdeDistribucion();
+      }
     });
+  }
+
+  private syncEstablecimientosGenerales() {
+    const existentes = new Set(this.establecimientos.map((e: any) => String(e.value)));
+    this.pantallaEstablecimientos.forEach((e: any) => {
+      if (!existentes.has(String(e.value))) {
+        this.establecimientos.push({ value: e.value, label: e.label });
+        existentes.add(String(e.value));
+      }
+    });
+  }
+
+  private syncPantallaEstablecimientosDesdeDistribucion() {
+    const distribucion = this.pantallaAps?.distribucionPorEstablecimiento || [];
+    if (!distribucion.length) return;
+
+    const actuales = new Map(this.pantallaEstablecimientos.map((e: any) => [String(e.value), e]));
+    distribucion.forEach((d: any) => {
+      if (d?.codigo === null || d?.codigo === undefined || String(d.codigo).trim() === '') return;
+      const codigo = Number(d.codigo);
+      if (!Number.isFinite(codigo)) return;
+      actuales.set(String(codigo), { value: codigo, label: d.nombre || String(codigo) });
+    });
+    this.pantallaEstablecimientos = Array.from(actuales.values())
+      .sort((a: any, b: any) => Number(a.value) - Number(b.value));
+    this.syncEstablecimientosGenerales();
   }
   reloadPantallaAps() { this.loadPantallaEstablecimientos(); this.loadPantallaAps(); }
   loadPantallaAps(showToast = true) {
@@ -1018,6 +1049,7 @@ export class AppComponent {
     this.http.get<any>(`${API}/pantallas/aps`, { params }).subscribe({
       next: r => {
         this.pantallaAps = r.data || {};
+        this.syncPantallaEstablecimientosDesdeDistribucion();
         this.pantallaOnline = true;
         this.pantallaLastOk = new Date();
         this.pantallaPage = Math.min(this.pantallaPage, Math.max(this.pantallaTotalPages - 1, 0));
