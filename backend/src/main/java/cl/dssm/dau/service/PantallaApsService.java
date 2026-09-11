@@ -171,16 +171,24 @@ public class PantallaApsService {
 
     private String displayEstablecimiento(Integer codigo) {
         if (codigo == null) return "Sin establecimiento";
+
         return switch (codigo) {
-            case 201079 -> "201079 - SAR Dr. Juan Damianovic";
-            case 126100 -> "126100 - HCM";
-            case 126900 -> "126900";
+            case 126801 -> "126801 - SAR Juan Damianovic";
+            case 201079 -> "201079 - SAPU Puerto Natales";
+            case 126101 -> "126101 - Hospital Dr. Augusto Essmann Burgos";
+            case 126102 -> "126102 - Hospital Dr. Marco Chamorro";
+            case 126704 -> "126704 - Hospital Comunitario Cristina Calderón";
+            case 126800 -> "126800 - SAPU Dr. Mateo Bencur";
+            case 201069 -> "201069 - SAPU Carlos Ibáñez";
+            case 126900 -> "126900 - SAPU 18 de Septiembre";
+            case 126100 -> "126100 - Hospital Clínico Magallanes";
             case 121105 -> "121105 - Puerto Natales";
             case 121110, 121102 -> codigo + " - Porvenir";
             case 121120, 121108 -> codigo + " - Puerto Williams";
             default -> String.valueOf(codigo);
         };
     }
+
     private Integer toInt(String v) { try { return Integer.valueOf(v); } catch(Exception e) { return null; } }
     private String first(String... values) { for (String v : values) if (v != null && !v.isBlank()) return v; return null; }
 }
