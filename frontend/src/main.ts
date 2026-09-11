@@ -620,6 +620,7 @@ class DetailDialogComponent {
                   <div class="aps-category" *ngFor="let c of pantallaAps?.tiemposPorCategoria || []" [ngClass]="categoryCss(c.categoria)">
                     <strong>{{c.categoria}}</strong>
                     <span>{{c.tiempo}}</span>
+                    <small class="aps-category-count">{{c.total || 0}} {{(c.total || 0) === 1 ? 'paciente' : 'pacientes'}}</small>
                   </div>
                 </div>
               </mat-card>

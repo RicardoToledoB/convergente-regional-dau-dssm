@@ -447,6 +447,7 @@ td small { display: block; color: var(--muted); margin-top: 3px; }
 .aps-category { min-height: 72px; display: grid; place-items: center; color: #052f57; font-size: 20px; font-weight: 700; border-right: 1px solid rgba(255,255,255,.75); }
 .aps-category strong { color: white; width: 100%; text-align: center; padding: 8px; }
 .aps-category span { padding: 8px; font-variant-numeric: tabular-nums; }
+.aps-category-count { display: block; padding: 0 8px 8px; font-size: 12px; line-height: 1.2; font-weight: 800; opacity: .82; text-align: center; }
 .cat-c1 strong, .category-pill.cat-c1 { background: #ef1717; color: white; }
 .cat-c2 strong, .category-pill.cat-c2 { background: #f47c26; color: white; }
 .cat-c3 strong, .category-pill.cat-c3 { background: #ffc400; color: #172033; }

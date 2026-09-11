@@ -86,20 +86,13 @@ public class PantallaApsService {
 
 
     /**
-     * Vigencia operacional para Pantalla APS (v4.4.7).
+     * Vigencia operacional estable para Pantalla APS (v4.4.8).
      *
-     * Regla por estado, aislada de la consolidación clínica:
-     *   - ADMISION: visible sólo mientras idAtencion siga siendo el identificador
-     *     temporal igual a idDau. La evidencia operativa mostró que esto representa
-     *     correctamente las admisiones aún no progresadas.
-     *   - ATENCION_MEDICA: visible si el último evento fue recibido dentro de las
-     *     últimas 3 horas. Evita mantener indefinidamente atenciones que RAYEN ya
-     *     retiró de su pantalla sin enviar un cierre explícito.
-     *   - CATEGORIZADA: conserva la regla diaria de v4.4.6 (admisión hoy o último
-     *     evento hoy) hasta contar con una señal de cierre más precisa desde RAYEN.
+     * La pantalla sigue el último estado consolidado recibido desde RAYEN y aplica
+     * únicamente una ventana máxima de seguridad de 24 horas para impedir que
+     * registros abiertos históricos, sin evento de cierre, permanezcan indefinidamente.
      *
-     * Esta lógica NO modifica dau_atenciones_consolidadas ni dau_eventos_recibidos,
-     * no crea altas artificiales y sólo afecta la visualización operacional APS.
+     * No modifica datos clínicos ni genera altas artificiales.
      */
     private boolean esActivoOperacional(DauAttentionEntity a, LocalDateTime now) {
         if (a == null || a.getEstadoActual() == null) return false;
@@ -109,32 +102,17 @@ public class PantallaApsService {
         LocalDateTime adm = parseFechaHora(a.getFechaAdminision(), a.getHoraAdmision());
         if (adm == null || adm.isAfter(now)) return false;
 
-        return switch (a.getEstadoActual()) {
-            case ADMISION -> Objects.equals(trimToNull(a.getIdAtencion()), trimToNull(a.getIdDau()));
+        // ADMISION temporal: mientras RAYEN aún no asigne un idAtencion real.
+        if (a.getEstadoActual() == DauEstado.ADMISION
+                && !Objects.equals(trimToNull(a.getIdAtencion()), trimToNull(a.getIdDau()))) {
+            return false;
+        }
 
-            case ATENCION_MEDICA -> {
-                LocalDateTime ultimoEvento = a.getFechaUltimoEvento();
-                if (ultimoEvento == null || ultimoEvento.isAfter(now)) {
-                    yield false;
-                }
-                long minutosSinEvento = Duration.between(ultimoEvento, now).toMinutes();
-                yield minutosSinEvento >= 0 && minutosSinEvento <= 180;
-            }
-
-            case CATEGORIZADA -> {
-                LocalDate hoy = now.toLocalDate();
-                boolean admisionHoy = adm.toLocalDate().equals(hoy);
-
-                LocalDateTime ultimoEvento = a.getFechaUltimoEvento();
-                boolean eventoHoy = ultimoEvento != null
-                        && !ultimoEvento.isAfter(now)
-                        && ultimoEvento.toLocalDate().equals(hoy);
-
-                yield admisionHoy || eventoHoy;
-            }
-
-            default -> false;
-        };
+        // Red de seguridad: actividad operacional dentro de las últimas 24 horas.
+        LocalDateTime referencia = a.getFechaUltimoEvento() != null ? a.getFechaUltimoEvento() : adm;
+        if (referencia.isAfter(now)) return false;
+        long minutos = Duration.between(referencia, now).toMinutes();
+        return minutos >= 0 && minutos <= 24 * 60;
     }
 
     private boolean estaEnAtencion(DauAttentionEntity a) {
@@ -151,7 +129,10 @@ public class PantallaApsService {
     }
 
     private PantallaApsResponse.CategoriaTiempo categoriaTiempo(String cat, List<DauAttentionEntity> activos, LocalDateTime now) {
-        List<DauAttentionEntity> rows = activos.stream().filter(a -> Objects.equals(normalizaCategoria(categoria(a)), cat)).toList();
+        List<DauAttentionEntity> rows = activos.stream()
+                .filter(this::estaEnEspera)
+                .filter(a -> Objects.equals(normalizaCategoria(categoria(a)), cat))
+                .toList();
         long max = rows.stream().map(a -> minutosDesdeAdmision(a, now)).filter(Objects::nonNull).mapToLong(Long::longValue).max().orElse(0);
         return new PantallaApsResponse.CategoriaTiempo(displayCategoriaCodigo(cat), displayCategoriaNombre(cat), formatoMinutos(max), rows.size());
     }
