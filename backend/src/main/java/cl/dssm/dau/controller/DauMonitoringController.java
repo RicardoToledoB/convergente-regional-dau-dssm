@@ -36,7 +36,11 @@ public class DauMonitoringController {
                 attentions.countByEstadoActual(DauEstado.ATENCION_MEDICA),
                 attentions.countByEstadoActual(DauEstado.ALTA_MEDICA),
                 events.count(),
-                events.findByEstadoProcesamiento(EstadoProcesamiento.ERROR, PageRequest.of(0, 1)).getTotalElements()
+                events.findByEstadoProcesamiento(EstadoProcesamiento.ERROR, PageRequest.of(0, 1)).getTotalElements(),
+                attentions.countAbiertosSinEventosPorHoras(3),
+                attentions.countAbiertosSinEventosPorHoras(6),
+                attentions.countAbiertosSinEventosPorHoras(12),
+                attentions.countAbiertosSinEventosPorHoras(24)
         );
         return new ApiResponse<>(true, "Dashboard", data);
     }

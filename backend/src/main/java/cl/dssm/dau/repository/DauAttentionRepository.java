@@ -58,4 +58,18 @@ public interface DauAttentionRepository extends JpaRepository<DauAttentionEntity
     List<DauAttentionEntity> findByCodigoEstablecimientoAndEstadoActualNotOrderByFechaActualizacionDesc(Integer codigoEstablecimiento, DauEstado estado);
 
     long countByEstadoActual(DauEstado estado);
+
+    /**
+     * DAU operativamente abiertos que no han recibido novedades durante más
+     * de N horas. Es un indicador de monitoreo: no modifica estados ni datos.
+     */
+    @Query(value = """
+            SELECT COUNT(*)
+            FROM dau_atenciones_consolidadas a
+            WHERE a.estado_actual IN ('ADMISION', 'CATEGORIZADA', 'ATENCION_MEDICA')
+              AND (a.fecha_alta IS NULL OR TRIM(a.fecha_alta) = '')
+              AND a.fecha_ultimo_evento IS NOT NULL
+              AND TIMESTAMPDIFF(MINUTE, a.fecha_ultimo_evento, NOW()) > (:hours * 60)
+            """, nativeQuery = true)
+    long countAbiertosSinEventosPorHoras(@Param("hours") int hours);
 }

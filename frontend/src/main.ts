@@ -331,6 +331,14 @@ class DetailDialogComponent {
               <mat-card class="kpi-card"><mat-card-content><mat-icon>receipt_long</mat-icon><strong>{{dash?.totalEventos || 0}}</strong><span>Eventos recibidos</span></mat-card-content></mat-card>
               <mat-card class="kpi-card danger"><mat-card-content><mat-icon>error</mat-icon><strong>{{dash?.eventosConError || 0}}</strong><span>Errores</span></mat-card-content></mat-card>
             </div>
+
+            <div class="section-header" style="margin-top: 24px;"><div><h3>Seguimiento de DAU abiertos sin nuevos eventos</h3><p>Indicador administrativo calculado desde la última novedad recibida. No modifica ni cierra atenciones.</p></div></div>
+            <div class="kpi-grid">
+              <mat-card class="kpi-card"><mat-card-content><mat-icon>schedule</mat-icon><strong>{{dash?.sinEventos3h || 0}}</strong><span>Sin eventos &gt; 3 h</span></mat-card-content></mat-card>
+              <mat-card class="kpi-card"><mat-card-content><mat-icon>schedule</mat-icon><strong>{{dash?.sinEventos6h || 0}}</strong><span>Sin eventos &gt; 6 h</span></mat-card-content></mat-card>
+              <mat-card class="kpi-card"><mat-card-content><mat-icon>warning_amber</mat-icon><strong>{{dash?.sinEventos12h || 0}}</strong><span>Sin eventos &gt; 12 h</span></mat-card-content></mat-card>
+              <mat-card class="kpi-card danger"><mat-card-content><mat-icon>report_problem</mat-icon><strong>{{dash?.sinEventos24h || 0}}</strong><span>Sin eventos &gt; 24 h</span></mat-card-content></mat-card>
+            </div>
           </section>
 
           <section *ngIf="token && view==='atenciones' && canUseMainModules()" class="page-section">
