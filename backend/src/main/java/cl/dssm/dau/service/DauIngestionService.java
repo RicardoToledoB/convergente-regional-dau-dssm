@@ -36,10 +36,38 @@ public class DauIngestionService {
         }
 
         String hash = sha256(json);
+
+        String idDau = text(payload, "idDAU");
+        String sourceIdAtencion = text(payload, "idAtencion");
+        String idAtencion = sourceIdAtencion;
+
+        // Normativo convergente: idDAU obligatorio, idAtencion opcional.
+        // Si idAtencion viene vacío, se usa idDAU como identificador temporal.
+        if (isBlank(idDau)) {
+            throw new IllegalArgumentException("Campo obligatorio idDAU no puede venir vacio");
+        }
+        if (isBlank(idAtencion)) {
+            idAtencion = idDau;
+        }
+
+        final String idDauFinal = idDau;
+        final String idAtencionFinal = idAtencion;
+        final String tipo = inferTipoEvento(payload, fileName);
+
+        // Si el evento ya fue recibido, no se duplica en bitácora, pero se reejecuta
+        // la consolidación idempotente. Esto permite corregir casos ya recibidos donde
+        // la admisión llegó con idAtencion nulo y luego llegó el idAtencion real.
         var duplicate = eventRepository.findByHashPayload(hash);
         if (duplicate.isPresent()) {
+            DauAttentionEntity att = resolveAttentionForConsolidation(idDauFinal, idAtencionFinal);
+            merge(att, payload);
+            att.setEstadoActual(resolveEstado(att, tipo));
+            att.setFechaUltimoEvento(LocalDateTime.now());
+            att.setFechaActualizacion(LocalDateTime.now());
+            attentionRepository.save(att);
+
             DauEventEntity e = duplicate.get();
-            return new DauIngestionResponse(e.getIdDau(), e.getIdAtencion(), e.getTipoEventoInferido(), null, hash, "DUPLICADO");
+            return new DauIngestionResponse(idDauFinal, idAtencionFinal, tipo, att.getEstadoActual().name(), hash, "DUPLICADO");
         }
 
         DauEventEntity event = new DauEventEntity();
@@ -52,24 +80,13 @@ public class DauIngestionService {
         event.setEstadoProcesamiento(EstadoProcesamiento.RECIBIDO);
 
         try {
-            String idDau = text(payload, "idDAU");
-            String idAtencion = text(payload, "idAtencion");
-            if (isBlank(idDau) || isBlank(idAtencion)) {
-                throw new IllegalArgumentException("Campos obligatorios idDAU e idAtencion no pueden venir vacios");
-            }
-            event.setIdDau(idDau);
-            event.setIdAtencion(idAtencion);
-            String tipo = inferTipoEvento(payload, fileName);
+            event.setIdDau(idDauFinal);
+            // La bitácora conserva el identificador exactamente como llegó desde el origen.
+            // La normalización idAtencion=idDAU se usa sólo para la tabla consolidada.
+            event.setIdAtencion(sourceIdAtencion);
             event.setTipoEventoInferido(tipo);
 
-            DauAttentionEntity att = attentionRepository.findByIdDauAndIdAtencion(idDau, idAtencion)
-                    .orElseGet(() -> {
-                        DauAttentionEntity n = new DauAttentionEntity();
-                        n.setIdDau(idDau);
-                        n.setIdAtencion(idAtencion);
-                        n.setFechaCreacion(LocalDateTime.now());
-                        return n;
-                    });
+            DauAttentionEntity att = resolveAttentionForConsolidation(idDauFinal, idAtencionFinal);
             merge(att, payload);
             att.setEstadoActual(resolveEstado(att, tipo));
             att.setFechaUltimoEvento(LocalDateTime.now());
@@ -78,13 +95,142 @@ public class DauIngestionService {
 
             event.setEstadoProcesamiento(EstadoProcesamiento.PROCESADO);
             eventRepository.save(event);
-            return new DauIngestionResponse(idDau, idAtencion, tipo, att.getEstadoActual().name(), hash, "PROCESADO");
+            return new DauIngestionResponse(idDauFinal, idAtencionFinal, tipo, att.getEstadoActual().name(), hash, "PROCESADO");
         } catch (Exception ex) {
             event.setEstadoProcesamiento(EstadoProcesamiento.ERROR);
             event.setMensajeError(ex.getMessage());
             eventRepository.save(event);
             throw ex;
         }
+    }
+
+    /**
+     * Regla RAYEN / Convergente:
+     * - La admisión puede llegar sin idAtencion. En ese caso se guarda temporalmente con idAtencion = idDAU.
+     * - Si después llega el mismo idDAU con idAtencion real, se adopta el idAtencion real como canónico.
+     * - Si ya existen ambos registros, se fusiona la información faltante desde el temporal al real y se elimina el temporal.
+     */
+    private DauAttentionEntity resolveAttentionForConsolidation(String idDau, String idAtencion) {
+        boolean hasCanonicalId = notBlank(idAtencion) && !idAtencion.equals(idDau);
+
+        if (!hasCanonicalId) {
+            return attentionRepository.findByIdDauAndIdAtencion(idDau, idDau)
+                    .orElseGet(() -> {
+                        DauAttentionEntity n = new DauAttentionEntity();
+                        n.setIdDau(idDau);
+                        n.setIdAtencion(idDau);
+                        n.setFechaCreacion(LocalDateTime.now());
+                        return n;
+                    });
+        }
+
+        var canonicalOpt = attentionRepository.findByIdDauAndIdAtencion(idDau, idAtencion);
+        var temporaryOpt = attentionRepository.findByIdDauAndIdAtencion(idDau, idDau);
+
+        if (canonicalOpt.isPresent()) {
+            DauAttentionEntity canonical = canonicalOpt.get();
+            if (temporaryOpt.isPresent() && !temporaryOpt.get().getId().equals(canonical.getId())) {
+                DauAttentionEntity temporary = temporaryOpt.get();
+                mergeMissingFrom(canonical, temporary);
+                attentionRepository.delete(temporary);
+            }
+            return canonical;
+        }
+
+        if (temporaryOpt.isPresent()) {
+            DauAttentionEntity temporary = temporaryOpt.get();
+            temporary.setIdAtencion(idAtencion);
+            return temporary;
+        }
+
+        DauAttentionEntity n = new DauAttentionEntity();
+        n.setIdDau(idDau);
+        n.setIdAtencion(idAtencion);
+        n.setFechaCreacion(LocalDateTime.now());
+        return n;
+    }
+
+    private void mergeMissingFrom(DauAttentionEntity target, DauAttentionEntity source) {
+        target.setNombreSolucion(keep(target.getNombreSolucion(), source.getNombreSolucion()));
+        target.setNumeroProceso(keep(target.getNumeroProceso(), source.getNumeroProceso()));
+        target.setMesAtencion(keep(target.getMesAtencion(), source.getMesAtencion()));
+        target.setAnoAtencion(keep(target.getAnoAtencion(), source.getAnoAtencion()));
+        target.setCodigoSS(keep(target.getCodigoSS(), source.getCodigoSS()));
+        target.setCodigoEstablecimiento(keep(target.getCodigoEstablecimiento(), source.getCodigoEstablecimiento()));
+        target.setIdBDPersonas(keep(target.getIdBDPersonas(), source.getIdBDPersonas()));
+        target.setIdPaciente(keep(target.getIdPaciente(), source.getIdPaciente()));
+        target.setRun(keep(target.getRun(), source.getRun()));
+        target.setDv(keep(target.getDv(), source.getDv()));
+        target.setTipoIdentificacion(keep(target.getTipoIdentificacion(), source.getTipoIdentificacion()));
+        target.setFechaNacimiento(keep(target.getFechaNacimiento(), source.getFechaNacimiento()));
+        target.setCodSexo(keep(target.getCodSexo(), source.getCodSexo()));
+        target.setPrevision(keep(target.getPrevision(), source.getPrevision()));
+        target.setClasificacionBeneficiarioFonasa(keep(target.getClasificacionBeneficiarioFonasa(), source.getClasificacionBeneficiarioFonasa()));
+        target.setLeyesPrevisionales(keep(target.getLeyesPrevisionales(), source.getLeyesPrevisionales()));
+        target.setFechaAdminision(keep(target.getFechaAdminision(), source.getFechaAdminision()));
+        target.setHoraAdmision(keep(target.getHoraAdmision(), source.getHoraAdmision()));
+        target.setProcedenciaPaciente(keep(target.getProcedenciaPaciente(), source.getProcedenciaPaciente()));
+        target.setUnidadAtencion(keep(target.getUnidadAtencion(), source.getUnidadAtencion()));
+        target.setMotivoConsulta(keep(target.getMotivoConsulta(), source.getMotivoConsulta()));
+        target.setClasificacionConsulta(keep(target.getClasificacionConsulta(), source.getClasificacionConsulta()));
+        target.setMedioLlegada(keep(target.getMedioLlegada(), source.getMedioLlegada()));
+        target.setNivelEstratoPaciente(keep(target.getNivelEstratoPaciente(), source.getNivelEstratoPaciente()));
+        target.setCategorizacionESI(keep(target.getCategorizacionESI(), source.getCategorizacionESI()));
+        target.setPrimeraCategorizacion(keep(target.getPrimeraCategorizacion(), source.getPrimeraCategorizacion()));
+        target.setFechaPrimeraCategorizacion(keep(target.getFechaPrimeraCategorizacion(), source.getFechaPrimeraCategorizacion()));
+        target.setHoraPrimeraCategorizacion(keep(target.getHoraPrimeraCategorizacion(), source.getHoraPrimeraCategorizacion()));
+        target.setTituloProfosionalPrimeraCategorizacion(keep(target.getTituloProfosionalPrimeraCategorizacion(), source.getTituloProfosionalPrimeraCategorizacion()));
+        target.setUltimaCategorizacion(keep(target.getUltimaCategorizacion(), source.getUltimaCategorizacion()));
+        target.setFechaUltimaCategorizacion(keep(target.getFechaUltimaCategorizacion(), source.getFechaUltimaCategorizacion()));
+        target.setHoraUltimaCategorizacion(keep(target.getHoraUltimaCategorizacion(), source.getHoraUltimaCategorizacion()));
+        target.setProfesionalUltimaCategorizacion(keep(target.getProfesionalUltimaCategorizacion(), source.getProfesionalUltimaCategorizacion()));
+        target.setNumCategorizacion(keep(target.getNumCategorizacion(), source.getNumCategorizacion()));
+        target.setFechaAtencion(keep(target.getFechaAtencion(), source.getFechaAtencion()));
+        target.setHoraAtencion(keep(target.getHoraAtencion(), source.getHoraAtencion()));
+        target.setHipotesisDiagnostico(keep(target.getHipotesisDiagnostico(), source.getHipotesisDiagnostico()));
+        target.setCodigoDiagnistico(keep(target.getCodigoDiagnistico(), source.getCodigoDiagnistico()));
+        target.setTipoCodigoDiagnostico(keep(target.getTipoCodigoDiagnostico(), source.getTipoCodigoDiagnostico()));
+        target.setIndicacionFarmacos(keep(target.getIndicacionFarmacos(), source.getIndicacionFarmacos()));
+        target.setIdReceta(keep(target.getIdReceta(), source.getIdReceta()));
+        target.setSolicitudMediosDiagnostico(keep(target.getSolicitudMediosDiagnostico(), source.getSolicitudMediosDiagnostico()));
+        target.setDescripcionMediosDiagnostico(keep(target.getDescripcionMediosDiagnostico(), source.getDescripcionMediosDiagnostico()));
+        target.setFechaAlta(keep(target.getFechaAlta(), source.getFechaAlta()));
+        target.setHoraAlta(keep(target.getHoraAlta(), source.getHoraAlta()));
+        target.setDiagnosticoFinal(keep(target.getDiagnosticoFinal(), source.getDiagnosticoFinal()));
+        target.setTipoDiagnostico(keep(target.getTipoDiagnostico(), source.getTipoDiagnostico()));
+        target.setCodigoDiagnosticoAltaMedica(keep(target.getCodigoDiagnosticoAltaMedica(), source.getCodigoDiagnosticoAltaMedica()));
+        target.setTipoCodDiagnosticoAltaMedica(keep(target.getTipoCodDiagnosticoAltaMedica(), source.getTipoCodDiagnosticoAltaMedica()));
+        target.setCondicionCierreAtencion(keep(target.getCondicionCierreAtencion(), source.getCondicionCierreAtencion()));
+        target.setPronosticoMedicoLegal(keep(target.getPronosticoMedicoLegal(), source.getPronosticoMedicoLegal()));
+        target.setDestinoAlta(keep(target.getDestinoAlta(), source.getDestinoAlta()));
+        target.setGes(keep(target.getGes(), source.getGes()));
+        target.setPertinencia(keep(target.getPertinencia(), source.getPertinencia()));
+        target.setIdProfesionalAlta(keep(target.getIdProfesionalAlta(), source.getIdProfesionalAlta()));
+        target.setRunProfesional(keep(target.getRunProfesional(), source.getRunProfesional()));
+        target.setDvProfesional(keep(target.getDvProfesional(), source.getDvProfesional()));
+        target.setTituloProfesional(keep(target.getTituloProfesional(), source.getTituloProfesional()));
+        target.setEspecialidadMedica(keep(target.getEspecialidadMedica(), source.getEspecialidadMedica()));
+        target.setEstadoActual(resolveMostAdvancedEstado(target.getEstadoActual(), source.getEstadoActual()));
+        target.setFechaCreacion(keep(target.getFechaCreacion(), source.getFechaCreacion()));
+        target.setFechaUltimoEvento(keep(target.getFechaUltimoEvento(), source.getFechaUltimoEvento()));
+        target.setFechaActualizacion(LocalDateTime.now());
+    }
+
+    private DauEstado resolveMostAdvancedEstado(DauEstado current, DauEstado incoming) {
+        if (incoming == null) return current;
+        if (current == null) return incoming;
+        return rank(incoming) > rank(current) ? incoming : current;
+    }
+
+    private int rank(DauEstado estado) {
+        if (estado == null) return 0;
+        return switch (estado) {
+            case ADMISION -> 1;
+            case CATEGORIZADA -> 2;
+            case ATENCION_MEDICA -> 3;
+            case ALTA_MEDICA -> 4;
+            case ERROR -> 0;
+        };
     }
 
     private void merge(DauAttentionEntity a, JsonNode p) {
@@ -130,7 +276,7 @@ public class DauIngestionService {
         a.setFechaAtencion(keep(a.getFechaAtencion(), text(p, "fechaAtencion")));
         a.setHoraAtencion(keep(a.getHoraAtencion(), text(p, "horaAtencion")));
         a.setHipotesisDiagnostico(keep(a.getHipotesisDiagnostico(), text(p, "hipotesisDiagnostico")));
-        a.setCodigoDiagnistico(keep(a.getCodigoDiagnistico(), text(p, "codigoDiagnistico")));
+        a.setCodigoDiagnistico(keep(a.getCodigoDiagnistico(), firstText(p, "codigoDiagnistico", "codigoDiagnostico")));
         a.setTipoCodigoDiagnostico(keep(a.getTipoCodigoDiagnostico(), text(p, "tipoCodigoDiagnostico")));
         a.setIndicacionFarmacos(keep(a.getIndicacionFarmacos(), text(p, "indicacionFarmacos")));
         a.setIdReceta(keep(a.getIdReceta(), text(p, "idReceta")));
@@ -156,24 +302,72 @@ public class DauIngestionService {
     }
 
     private DauEstado resolveEstado(DauAttentionEntity a, String tipo) {
-        if (notBlank(a.getFechaAlta()) || "04_ALTA_MEDICA".equals(tipo)) return DauEstado.ALTA_MEDICA;
-        if (notBlank(a.getFechaAtencion()) || "03_ATENCION_MEDICA".equals(tipo)) return DauEstado.ATENCION_MEDICA;
-        if (notBlank(a.getPrimeraCategorizacion()) || "02_CATEGORIZACION".equals(tipo)) return DauEstado.CATEGORIZADA;
-        return DauEstado.ADMISION;
+        DauEstado inferred;
+        if (notBlank(a.getFechaAlta()) || "04_ALTA_MEDICA".equals(tipo)) {
+            inferred = DauEstado.ALTA_MEDICA;
+        } else if (notBlank(a.getFechaAtencion()) || hasConsolidatedMedicalData(a) || "03_ATENCION_MEDICA".equals(tipo)) {
+            inferred = DauEstado.ATENCION_MEDICA;
+        } else if (notBlank(a.getPrimeraCategorizacion()) || notBlank(a.getUltimaCategorizacion()) || "02_CATEGORIZACION".equals(tipo)) {
+            inferred = DauEstado.CATEGORIZADA;
+        } else {
+            inferred = DauEstado.ADMISION;
+        }
+        return resolveMostAdvancedEstado(a.getEstadoActual(), inferred);
+    }
+
+    private boolean hasConsolidatedMedicalData(DauAttentionEntity a) {
+        return notBlank(a.getHipotesisDiagnostico())
+                || notBlank(a.getCodigoDiagnistico())
+                || notBlank(a.getTipoCodigoDiagnostico())
+                || notBlank(a.getIndicacionFarmacos())
+                || notBlank(a.getIdReceta())
+                || notBlank(a.getSolicitudMediosDiagnostico())
+                || notBlank(a.getDescripcionMediosDiagnostico());
     }
 
     private String inferTipoEvento(JsonNode p, String fileName) {
         if (fileName != null) {
             String f = fileName.toLowerCase();
-            if (f.contains("altamedica") || f.contains("04_")) return "04_ALTA_MEDICA";
-            if (f.contains("atencionmedica") || f.contains("03_")) return "03_ATENCION_MEDICA";
+            if (f.contains("altamedica") || f.contains("alta_medica") || f.contains("04_")) return "04_ALTA_MEDICA";
+            if (f.contains("atencionmedica") || f.contains("atencion_medica") || f.contains("03_")) return "03_ATENCION_MEDICA";
             if (f.contains("categorizacion") || f.contains("02_")) return "02_CATEGORIZACION";
             if (f.contains("admision") || f.contains("01_")) return "01_ADMISION";
         }
-        if (notBlank(text(p, "fechaAlta")) || notBlank(text(p, "horaAlta"))) return "04_ALTA_MEDICA";
-        if (notBlank(text(p, "fechaAtencion")) || notBlank(text(p, "horaAtencion"))) return "03_ATENCION_MEDICA";
-        if (notBlank(text(p, "primeraCategorizacion")) || notBlank(text(p, "ultimaCategorizacion")) || "SI".equalsIgnoreCase(text(p, "categorizacionESI"))) return "02_CATEGORIZACION";
+
+        // Orden descendente por avance clínico. Alta prevalece sobre atención médica,
+        // y atención médica prevalece sobre categorización.
+        if (notBlank(text(p, "fechaAlta"))
+                || notBlank(text(p, "horaAlta"))
+                || notBlank(text(p, "codigoDiagnosticoAltaMedica"))
+                || notBlank(text(p, "condicionCierreAtencion"))
+                || notBlank(text(p, "destinoAlta"))) {
+            return "04_ALTA_MEDICA";
+        }
+
+        // RAYEN puede enviar evento de atención médica sin fechaAtencion/horaAtencion,
+        // pero con antecedentes clínicos/diagnósticos. Debe inferirse como 03 y no como 02.
+        if (hasMedicalAttentionData(p)) {
+            return "03_ATENCION_MEDICA";
+        }
+
+        if (notBlank(text(p, "primeraCategorizacion"))
+                || notBlank(text(p, "ultimaCategorizacion"))
+                || "SI".equalsIgnoreCase(text(p, "categorizacionESI"))) {
+            return "02_CATEGORIZACION";
+        }
         return "01_ADMISION";
+    }
+
+    private boolean hasMedicalAttentionData(JsonNode p) {
+        return notBlank(text(p, "fechaAtencion"))
+                || notBlank(text(p, "horaAtencion"))
+                || notBlank(text(p, "hipotesisDiagnostico"))
+                || notBlank(firstText(p, "codigoDiagnistico", "codigoDiagnostico"))
+                || notBlank(text(p, "tipoCodigoDiagnostico"))
+                || notBlank(text(p, "indicacionFarmacos"))
+                || notBlank(text(p, "idReceta"))
+                || notBlank(text(p, "solicitudMediosDiagnostico"))
+                || notBlank(text(p, "descripcionMediosDiagnostico"));
     }
 
     private String firstText(JsonNode p, String... names) {
