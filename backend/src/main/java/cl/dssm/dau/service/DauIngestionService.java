@@ -301,13 +301,18 @@ public class DauIngestionService {
         a.setEspecialidadMedica(keep(a.getEspecialidadMedica(), text(p, "especialidadMedica")));
     }
 
+    /**
+     * Estado consolidado estricto según contrato JSON DAU (v4.4.9).
+     * El nombre/tipo inferido del evento se conserva para auditoría, pero el estado
+     * operacional se determina por los campos clínicos efectivamente consolidados.
+     */
     private DauEstado resolveEstado(DauAttentionEntity a, String tipo) {
         DauEstado inferred;
-        if (notBlank(a.getFechaAlta()) || "04_ALTA_MEDICA".equals(tipo)) {
+        if (notBlank(a.getFechaAlta()) && notBlank(a.getHoraAlta())) {
             inferred = DauEstado.ALTA_MEDICA;
-        } else if (notBlank(a.getFechaAtencion()) || hasConsolidatedMedicalData(a) || "03_ATENCION_MEDICA".equals(tipo)) {
+        } else if (notBlank(a.getFechaAtencion()) && notBlank(a.getHoraAtencion())) {
             inferred = DauEstado.ATENCION_MEDICA;
-        } else if (notBlank(a.getPrimeraCategorizacion()) || notBlank(a.getUltimaCategorizacion()) || "02_CATEGORIZACION".equals(tipo)) {
+        } else if (notBlank(a.getPrimeraCategorizacion()) || notBlank(a.getUltimaCategorizacion())) {
             inferred = DauEstado.CATEGORIZADA;
         } else {
             inferred = DauEstado.ADMISION;

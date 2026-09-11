@@ -86,41 +86,27 @@ public class PantallaApsService {
 
 
     /**
-     * Vigencia operacional estable para Pantalla APS (v4.4.8).
+     * Pantalla APS v4.4.9: vigencia estricta por estado consolidado.
      *
-     * La pantalla sigue el último estado consolidado recibido desde RAYEN y aplica
-     * únicamente una ventana máxima de seguridad de 24 horas para impedir que
-     * registros abiertos históricos, sin evento de cierre, permanezcan indefinidamente.
-     *
-     * No modifica datos clínicos ni genera altas artificiales.
+     * ADMISION, CATEGORIZADA y ATENCION_MEDICA permanecen activos hasta recibir
+     * datos explícitos de cierre que consoliden ALTA_MEDICA. No se aplican
+     * vencimientos artificiales por horas.
      */
     private boolean esActivoOperacional(DauAttentionEntity a, LocalDateTime now) {
         if (a == null || a.getEstadoActual() == null) return false;
         if (a.getEstadoActual() == DauEstado.ALTA_MEDICA || a.getEstadoActual() == DauEstado.ERROR) return false;
-        if (a.getFechaAlta() != null && !a.getFechaAlta().isBlank()) return false;
+        if (notBlank(a.getFechaAlta()) && notBlank(a.getHoraAlta())) return false;
 
         LocalDateTime adm = parseFechaHora(a.getFechaAdminision(), a.getHoraAdmision());
-        if (adm == null || adm.isAfter(now)) return false;
-
-        // ADMISION temporal: mientras RAYEN aún no asigne un idAtencion real.
-        if (a.getEstadoActual() == DauEstado.ADMISION
-                && !Objects.equals(trimToNull(a.getIdAtencion()), trimToNull(a.getIdDau()))) {
-            return false;
-        }
-
-        // Red de seguridad: actividad operacional dentro de las últimas 24 horas.
-        LocalDateTime referencia = a.getFechaUltimoEvento() != null ? a.getFechaUltimoEvento() : adm;
-        if (referencia.isAfter(now)) return false;
-        long minutos = Duration.between(referencia, now).toMinutes();
-        return minutos >= 0 && minutos <= 24 * 60;
+        return adm != null && !adm.isAfter(now);
     }
 
     private boolean estaEnAtencion(DauAttentionEntity a) {
         if (a == null) return false;
-        if (a.getFechaAlta() != null && !a.getFechaAlta().isBlank()) return false;
-        if (a.getEstadoActual() == DauEstado.ATENCION_MEDICA) return true;
-        return (a.getFechaAtencion() != null && !a.getFechaAtencion().isBlank())
-                || (a.getHoraAtencion() != null && !a.getHoraAtencion().isBlank());
+        if (notBlank(a.getFechaAlta()) && notBlank(a.getHoraAlta())) return false;
+        return a.getEstadoActual() == DauEstado.ATENCION_MEDICA
+                && notBlank(a.getFechaAtencion())
+                && notBlank(a.getHoraAtencion());
     }
 
     private boolean estaEnEspera(DauAttentionEntity a) {
