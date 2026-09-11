@@ -86,17 +86,20 @@ public class PantallaApsService {
 
 
     /**
-     * Vigencia operacional para Pantalla APS (v4.4.6).
+     * Vigencia operacional para Pantalla APS (v4.4.7).
      *
-     * La integración puede dejar DAU abiertos sin evento explícito de alta. Para no
-     * contaminar el consolidado ni inventar cierres, la pantalla sólo considera vigente
-     * una atención si:
-     *   - fue admitida durante el día actual; o
-     *   - recibió su último evento durante el día actual.
+     * Regla por estado, aislada de la consolidación clínica:
+     *   - ADMISION: visible sólo mientras idAtencion siga siendo el identificador
+     *     temporal igual a idDau. La evidencia operativa mostró que esto representa
+     *     correctamente las admisiones aún no progresadas.
+     *   - ATENCION_MEDICA: visible si el último evento fue recibido dentro de las
+     *     últimas 3 horas. Evita mantener indefinidamente atenciones que RAYEN ya
+     *     retiró de su pantalla sin enviar un cierre explícito.
+     *   - CATEGORIZADA: conserva la regla diaria de v4.4.6 (admisión hoy o último
+     *     evento hoy) hasta contar con una señal de cierre más precisa desde RAYEN.
      *
-     * Así se permite que una atención iniciada el día anterior siga visible cuando
-     * efectivamente continúa recibiendo actividad hoy, pero se evita arrastrar casos
-     * antiguos sin novedades. Esta regla afecta únicamente a la visualización APS.
+     * Esta lógica NO modifica dau_atenciones_consolidadas ni dau_eventos_recibidos,
+     * no crea altas artificiales y sólo afecta la visualización operacional APS.
      */
     private boolean esActivoOperacional(DauAttentionEntity a, LocalDateTime now) {
         if (a == null || a.getEstadoActual() == null) return false;
@@ -106,15 +109,32 @@ public class PantallaApsService {
         LocalDateTime adm = parseFechaHora(a.getFechaAdminision(), a.getHoraAdmision());
         if (adm == null || adm.isAfter(now)) return false;
 
-        LocalDate hoy = now.toLocalDate();
-        boolean admisionHoy = adm.toLocalDate().equals(hoy);
+        return switch (a.getEstadoActual()) {
+            case ADMISION -> Objects.equals(trimToNull(a.getIdAtencion()), trimToNull(a.getIdDau()));
 
-        LocalDateTime ultimoEvento = a.getFechaUltimoEvento();
-        boolean eventoHoy = ultimoEvento != null
-                && !ultimoEvento.isAfter(now)
-                && ultimoEvento.toLocalDate().equals(hoy);
+            case ATENCION_MEDICA -> {
+                LocalDateTime ultimoEvento = a.getFechaUltimoEvento();
+                if (ultimoEvento == null || ultimoEvento.isAfter(now)) {
+                    yield false;
+                }
+                long minutosSinEvento = Duration.between(ultimoEvento, now).toMinutes();
+                yield minutosSinEvento >= 0 && minutosSinEvento <= 180;
+            }
 
-        return admisionHoy || eventoHoy;
+            case CATEGORIZADA -> {
+                LocalDate hoy = now.toLocalDate();
+                boolean admisionHoy = adm.toLocalDate().equals(hoy);
+
+                LocalDateTime ultimoEvento = a.getFechaUltimoEvento();
+                boolean eventoHoy = ultimoEvento != null
+                        && !ultimoEvento.isAfter(now)
+                        && ultimoEvento.toLocalDate().equals(hoy);
+
+                yield admisionHoy || eventoHoy;
+            }
+
+            default -> false;
+        };
     }
 
     private boolean estaEnAtencion(DauAttentionEntity a) {
@@ -213,5 +233,6 @@ public class PantallaApsService {
     }
 
     private Integer toInt(String v) { try { return Integer.valueOf(v); } catch(Exception e) { return null; } }
+    private String trimToNull(String v) { return v == null || v.isBlank() ? null : v.trim(); }
     private String first(String... values) { for (String v : values) if (v != null && !v.isBlank()) return v; return null; }
 }
