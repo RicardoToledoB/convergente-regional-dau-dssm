@@ -52,8 +52,10 @@ public class SecurityConfig {
                         .hasAnyAuthority("ROLE_ADMIN", "ROLE_VISOR_APS")
                         .requestMatchers("/api/integration/dau/eventos")
                         .hasAnyAuthority("ROLE_ADMIN", "ROLE_INTEGRADOR", "ROLE_INTEGRATION")
+                        // Consulta de eventos por RUT: disponible para ADMIN, integradores autenticados
+                        // (por ejemplo PortalPaciente PRE) y la API key tecnica dedicada.
                         .requestMatchers("/api/patient/**")
-                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_PATIENT_API")
+                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_INTEGRADOR", "ROLE_PATIENT_API")
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())
