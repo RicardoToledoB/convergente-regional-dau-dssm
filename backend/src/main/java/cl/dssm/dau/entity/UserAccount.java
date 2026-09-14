@@ -31,6 +31,14 @@ public class UserAccount {
     @Column(length = 160)
     private String providerName;
 
+    @Column(length = 120)
+    private String comuna;
+
+    private Integer establecimientoCodigo;
+
+    @Column(length = 500)
+    private String logoUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private Role role;

@@ -11,5 +11,8 @@ public record UserCreateRequest(
         String email,
         String providerName,
         @NotNull Role role,
-        Boolean enabled
+        Boolean enabled,
+        String comuna,
+        Integer establecimientoCodigo,
+        String logoUrl
 ) {}

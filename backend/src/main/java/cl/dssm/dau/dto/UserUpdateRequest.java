@@ -7,5 +7,8 @@ public record UserUpdateRequest(
         String email,
         String providerName,
         Role role,
-        Boolean enabled
+        Boolean enabled,
+        String comuna,
+        Integer establecimientoCodigo,
+        String logoUrl
 ) {}

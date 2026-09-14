@@ -11,6 +11,9 @@ public record UserResponse(
         String providerName,
         Role role,
         Boolean enabled,
+        String comuna,
+        Integer establecimientoCodigo,
+        String logoUrl,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         LocalDateTime lastLogin

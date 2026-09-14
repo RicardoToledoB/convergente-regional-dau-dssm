@@ -288,7 +288,7 @@ class DetailDialogComponent {
           <button mat-button [class.active]="view==='errores'" [matTooltip]="sidebarCollapsed ? 'Errores' : ''" matTooltipPosition="right" *ngIf="canAudit()" (click)="go('errores'); closeMobileMenu()"><mat-icon>report_problem</mat-icon><span>Errores</span></button>
           <button mat-button [class.active]="view==='usuarios'" [matTooltip]="sidebarCollapsed ? 'Usuarios' : ''" matTooltipPosition="right" *ngIf="isAdmin()" (click)="go('usuarios'); closeMobileMenu()"><mat-icon>manage_accounts</mat-icon><span>Usuarios</span></button>
           <button mat-button *ngIf="canUseMainModules()" [class.active]="view==='gestion'" [matTooltip]="sidebarCollapsed ? 'Gestión Red' : ''" matTooltipPosition="right" (click)="go('gestion'); closeMobileMenu()"><mat-icon>analytics</mat-icon><span>Gestión Red</span></button>
-          <button mat-button *ngIf="canUsePantallaAps()" [class.active]="view==='pantallaAps'" [matTooltip]="sidebarCollapsed ? 'Pantalla APS' : ''" matTooltipPosition="right" (click)="go('pantallaAps'); closeMobileMenu()"><mat-icon>tv</mat-icon><span>Pantalla APS</span></button>
+          <button mat-button *ngIf="canUsePantallaAps()" [class.active]="view==='pantallaAps'" [matTooltip]="sidebarCollapsed ? 'Visor Integrado de Urgencia' : ''" matTooltipPosition="right" (click)="go('pantallaAps'); closeMobileMenu()"><mat-icon>tv</mat-icon><span>Visor Integrado</span></button>
         </nav>
 
         <div class="sidenav-footer" *ngIf="token">
@@ -579,10 +579,13 @@ class DetailDialogComponent {
             <div class="aps-screen">
               <div class="aps-header">
                 <div class="aps-brand">
-                  <div class="aps-logo"><mat-icon>groups</mat-icon><small>APS</small></div>
+                  <div class="aps-logo">
+                    <img *ngIf="userLogoUrl" [src]="userLogoUrl" alt="Logo establecimiento">
+                    <ng-container *ngIf="!userLogoUrl"><mat-icon>groups</mat-icon><small>URG</small></ng-container>
+                  </div>
                   <div>
-                    <h2>Monitoreo APS en Red</h2>
-                    <p>Información Servicio de Urgencia / APS</p>
+                    <h2>{{pantallaModo === 'centro' ? nombrePantallaCentro : ('Red Urgencia · ' + (pantallaRed?.comuna || pantallaComuna || 'Regional'))}}</h2>
+                    <p>{{pantallaModo === 'centro' ? 'Información Servicio de Urgencia' : 'Visión integrada de la red asistencial'}}</p>
                   </div>
                 </div>
                 <div class="aps-header-right">
@@ -594,19 +597,30 @@ class DetailDialogComponent {
                 </div>
               </div>
 
-              <mat-card class="aps-selector-card">
-                <div class="aps-selector-title"><mat-icon>apartment</mat-icon><strong>Establecimiento a monitorear</strong></div>
-                <mat-form-field appearance="outline" class="aps-select">
+              <mat-card class="aps-selector-card visor-controls">
+                <div class="aps-quick-tabs">
+                  <button mat-stroked-button [class.active]="pantallaModo==='centro'" (click)="setPantallaModo('centro')"><mat-icon>local_hospital</mat-icon> Mi urgencia</button>
+                  <button mat-stroked-button [class.active]="pantallaModo==='red'" (click)="setPantallaModo('red')"><mat-icon>hub</mat-icon> Red de urgencia</button>
+                </div>
+                <mat-form-field *ngIf="pantallaModo==='centro' && (isAdmin() || !userEstablecimientoCodigo)" appearance="outline" class="aps-select">
                   <mat-label>Establecimiento</mat-label>
                   <mat-select [(ngModel)]="pantallaEstablecimiento" (selectionChange)="loadPantallaAps()">
-                    <mat-option [value]="null">Red completa / Todos los establecimientos</mat-option>
                     <mat-option *ngFor="let e of pantallaEstablecimientos" [value]="e.value">{{e.label}}</mat-option>
                   </mat-select>
                 </mat-form-field>
+                <mat-form-field *ngIf="pantallaModo==='red' && (isAdmin() || isGestorRegional())" appearance="outline" class="aps-select">
+                  <mat-label>Comuna</mat-label>
+                  <mat-select [(ngModel)]="pantallaComuna" (selectionChange)="onPantallaComunaChange()">
+                    <mat-option value="">Todas las comunas</mat-option>
+                    <mat-option *ngFor="let c of pantallaComunas" [value]="c">{{c}}</mat-option>
+                  </mat-select>
+                </mat-form-field>
+                <div class="aps-scope-note" *ngIf="pantallaModo==='red' && isGestorComunal()"><mat-icon>location_on</mat-icon>{{userComuna || 'Comuna asociada'}}</div>
                 <div class="aps-selector-spacer"></div>
                 <button mat-icon-button matTooltip="Recargar" (click)="reloadPantallaAps()"><mat-icon>refresh</mat-icon></button>
               </mat-card>
 
+              <ng-container *ngIf="pantallaModo==='centro'">
               <div class="aps-kpi-row">
                 <mat-card class="aps-kpi wait"><mat-icon>groups</mat-icon><div><span>Pacientes en espera</span><strong>{{pantallaAps?.pacientesEnEspera || 0}}</strong></div></mat-card>
                 <mat-card class="aps-kpi care"><mat-icon>medical_services</mat-icon><div><span>Pacientes en atención</span><strong>{{pantallaAps?.pacientesEnAtencion || 0}}</strong></div></mat-card>
@@ -661,6 +675,35 @@ class DetailDialogComponent {
                   </div>
                 </mat-card>
               </div>
+              </ng-container>
+
+              <ng-container *ngIf="pantallaModo==='red'">
+                <div class="aps-kpi-row gestor-kpis">
+                  <mat-card class="aps-kpi wait"><mat-icon>groups</mat-icon><div><span>Total en espera</span><strong>{{pantallaRed?.totalEnEspera || 0}}</strong></div></mat-card>
+                  <mat-card class="aps-kpi care"><mat-icon>medical_services</mat-icon><div><span>En atención</span><strong>{{pantallaRed?.totalEnAtencion || 0}}</strong></div></mat-card>
+                  <mat-card class="aps-kpi avg"><mat-icon>schedule</mat-icon><div><span>Promedio de espera</span><strong>{{pantallaRed?.tiempoPromedioEspera || '00:00'}}</strong></div></mat-card>
+                  <mat-card class="aps-kpi max"><mat-icon>domain</mat-icon><div><span>Centros activos</span><strong>{{pantallaRed?.centrosActivos || 0}}</strong></div></mat-card>
+                </div>
+                <mat-card class="aps-table-card red-urgencia-card">
+                  <div class="aps-table-title">
+                    <h3><mat-icon>hub</mat-icon>{{pantallaRed?.alcance === 'REGIONAL' ? 'Gestión regional' : 'Gestión comunal'}} · {{pantallaRed?.comuna}}</h3>
+                    <span>{{pantallaRed?.centros?.length || 0}} establecimientos</span>
+                  </div>
+                  <div class="aps-table-scroll">
+                    <table class="aps-public-table red-urgencia-table">
+                      <thead><tr><th>Establecimiento</th><th *ngIf="pantallaRed?.alcance==='REGIONAL'">Comuna</th><th>C1</th><th>C2</th><th>C3</th><th>C4</th><th>C5</th><th>S/C</th><th>Espera</th><th>Atención</th><th>Promedio</th></tr></thead>
+                      <tbody>
+                        <tr *ngFor="let c of pantallaRed?.centros || []">
+                          <td class="red-centro-name">{{c.establecimiento}}</td><td *ngIf="pantallaRed?.alcance==='REGIONAL'">{{c.comuna}}</td>
+                          <td class="cat-c1">{{c.c1}}</td><td class="cat-c2">{{c.c2}}</td><td class="cat-c3">{{c.c3}}</td><td class="cat-c4">{{c.c4}}</td><td class="cat-c5">{{c.c5}}</td><td class="cat-sc">{{c.sinCategoria}}</td>
+                          <td><strong>{{c.pacientesEnEspera}}</strong></td><td><strong>{{c.pacientesEnAtencion}}</strong></td><td><strong>{{c.tiempoPromedioEspera}}</strong></td>
+                        </tr>
+                        <tr *ngIf="!(pantallaRed?.centros || []).length"><td [attr.colspan]="pantallaRed?.alcance==='REGIONAL' ? 11 : 10" class="empty-aps">Sin establecimientos para el alcance seleccionado.</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </mat-card>
+              </ng-container>
             </div>
           </section>
 
@@ -674,6 +717,9 @@ class DetailDialogComponent {
                 <mat-form-field appearance="outline"><mat-label>Nombre completo</mat-label><input matInput [(ngModel)]="newUser.fullName"></mat-form-field>
                 <mat-form-field appearance="outline"><mat-label>Email</mat-label><input matInput [(ngModel)]="newUser.email"></mat-form-field>
                 <mat-form-field appearance="outline"><mat-label>Proveedor / origen</mat-label><input matInput [(ngModel)]="newUser.providerName"></mat-form-field>
+                <mat-form-field appearance="outline"><mat-label>Comuna asociada</mat-label><mat-select [(ngModel)]="newUser.comuna"><mat-option value="">Sin restricción</mat-option><mat-option *ngFor="let c of pantallaComunas" [value]="c">{{c}}</mat-option></mat-select></mat-form-field>
+                <mat-form-field appearance="outline"><mat-label>Establecimiento asociado</mat-label><mat-select [(ngModel)]="newUser.establecimientoCodigo"><mat-option [value]="null">Sin restricción</mat-option><mat-option *ngFor="let e of pantallaEstablecimientos" [value]="e.value">{{e.label}}</mat-option></mat-select></mat-form-field>
+                <mat-form-field appearance="outline"><mat-label>URL logo centro</mat-label><input matInput [(ngModel)]="newUser.logoUrl"></mat-form-field>
                 <mat-form-field appearance="outline"><mat-label>Rol</mat-label><mat-select [(ngModel)]="newUser.role"><mat-option *ngFor="let r of roles" [value]="r">{{r}}</mat-option></mat-select></mat-form-field>
                 <mat-slide-toggle [(ngModel)]="newUser.enabled">Habilitado</mat-slide-toggle>
                 <div class="filter-actions"><button mat-flat-button color="primary" (click)="createUser()"><mat-icon>person_add</mat-icon>Crear usuario</button></div>
@@ -709,6 +755,9 @@ export class AppComponent {
   fullName = localStorage.getItem('fullName') || '';
   role = localStorage.getItem('role') || '';
   providerName = localStorage.getItem('providerName') || '';
+  userComuna = localStorage.getItem('comuna') || '';
+  userEstablecimientoCodigo = Number(localStorage.getItem('establecimientoCodigo') || '') || null;
+  userLogoUrl = localStorage.getItem('logoUrl') || '';
   error = '';
   view: 'dashboard'|'sinEventos'|'atenciones'|'eventos'|'errores'|'usuarios'|'gestion'|'pantallaAps' = 'dashboard';
   loading = false;
@@ -727,7 +776,7 @@ export class AppComponent {
   dash: any;
   estados = ['ADMISION', 'CATEGORIZADA', 'ATENCION_MEDICA', 'ALTA_MEDICA'];
   tiposEvento = ['01_ADMISION', '02_CATEGORIZACION', '03_ATENCION_MEDICA', '04_ALTA_MEDICA'];
-  roles = ['ADMIN', 'INTEGRADOR', 'GESTOR_RED', 'VISUALIZADOR', 'AUDITOR', 'VISOR_APS'];
+  roles = ['ADMIN', 'INTEGRADOR', 'GESTOR_RED', 'VISUALIZADOR', 'AUDITOR', 'VISOR_APS', 'GESTOR_COMUNAL', 'GESTOR_REGIONAL'];
 
   attCols = ['idDau', 'establecimiento', 'admision', 'motivo', 'cat', 'estado', 'acciones'];
   sinEventosCols = ['idDau', 'establecimiento', 'estado', 'categoria', 'ultimo', 'horas', 'acciones'];
@@ -753,7 +802,7 @@ export class AppComponent {
   attF: any = { q: '', estado: '', establecimiento: '', categoria: '', fechaDesde: '', fechaHasta: '', page: 0, size: 20 };
   evtF: any = { q: '', idDau: '', tipoEvento: '', estado: '', fechaDesde: '', fechaHasta: '', page: 0, size: 20 };
   errF: any = { q: '', idDau: '', fechaDesde: '', fechaHasta: '', page: 0, size: 20 };
-  newUser: any = { username: '', password: '', fullName: '', email: '', providerName: '', role: 'VISUALIZADOR', enabled: true };
+  newUser: any = { username: '', password: '', fullName: '', email: '', providerName: '', role: 'VISUALIZADOR', enabled: true, comuna: '', establecimientoCodigo: null, logoUrl: '' };
   gestionF: any = { dispositivos: [], establecimientos: [], sexos: [], categorias: [], origenes: [], gruposDiagnostico: [], tramosHorarios: [], edadDesde: '', edadHasta: '', fechaDesde: '', fechaHasta: '', agruparPor: 'DIA', page: 0, size: 20 };
   pantallaNow = new Date();
   pantallaEstablecimiento: number | null = null;
@@ -763,22 +812,51 @@ export class AppComponent {
   pantallaPage = 0;
   pantallaPageSize = 8;
   pantallaEstablecimientos: any[] = [];
+  pantallaModo: 'centro'|'red' = 'centro';
+  pantallaRed: any = null;
+  pantallaComunas: string[] = [];
+  pantallaComuna = '';
+  private visorRotationTick = 0;
 
   get title() {
-    return ({ dashboard: 'Dashboard operacional', sinEventos: 'DAU sin nuevos eventos', atenciones: 'Monitor DAU', eventos: 'Bitácora de eventos', errores: 'Errores de integración', usuarios: 'Administración de usuarios', gestion: 'Gestión Red de Urgencia', pantallaAps: 'Pantalla APS' } as any)[this.view];
+    return ({ dashboard: 'Dashboard operacional', sinEventos: 'DAU sin nuevos eventos', atenciones: 'Monitor DAU', eventos: 'Bitácora de eventos', errores: 'Errores de integración', usuarios: 'Administración de usuarios', gestion: 'Gestión Red de Urgencia', pantallaAps: 'Visor Integrado de Urgencia' } as any)[this.view];
   }
   get subtitle() {
-    return ({ dashboard: 'Resumen regional', sinEventos: 'Seguimiento administrativo', atenciones: 'Atenciones consolidadas', eventos: 'Trazabilidad técnica', errores: 'Control de rechazos', usuarios: 'Cuentas y roles', gestion: 'Reportería avanzada', pantallaAps: 'Vista pública para establecimientos' } as any)[this.view];
+    return ({ dashboard: 'Resumen regional', sinEventos: 'Seguimiento administrativo', atenciones: 'Atenciones consolidadas', eventos: 'Trazabilidad técnica', errores: 'Control de rechazos', usuarios: 'Cuentas y roles', gestion: 'Reportería avanzada', pantallaAps: 'Sala de espera y gestión comunal/regional' } as any)[this.view];
   }
   get apiHost() { return API.replace('/api', '').replace('https://', '').replace('http://', ''); }
 
-  ngOnInit() { if (this.token) { this.loadPantallaEstablecimientos(); this.go(this.defaultViewForRole()); } setInterval(() => { this.pantallaNow = new Date(); if (this.token && this.view === 'pantallaAps') this.loadPantallaAps(false); }, 15000); setInterval(() => { if (this.token && this.view === 'pantallaAps' && this.pantallaTotalPages > 1) this.nextPantallaPage(); }, 12000); }
+  ngOnInit() {
+    if (this.token) {
+      this.pantallaEstablecimiento = this.userEstablecimientoCodigo;
+      this.pantallaComuna = this.userComuna;
+      this.pantallaModo = this.isGestorUrgencia() ? 'red' : 'centro';
+      this.loadPantallaEstablecimientos();
+      this.loadPantallaComunas();
+      this.go(this.defaultViewForRole());
+    }
+    setInterval(() => {
+      this.pantallaNow = new Date();
+      if (this.token && this.view === 'pantallaAps') {
+        if (this.isVisorAps()) {
+          this.visorRotationTick++;
+          if (this.visorRotationTick % 2 === 0) this.pantallaModo = this.pantallaModo === 'centro' ? 'red' : 'centro';
+        }
+        this.loadPantallaAps(false);
+        if (this.pantallaModo === 'red') this.loadPantallaRed(false);
+      }
+    }, 15000);
+    setInterval(() => { if (this.token && this.view === 'pantallaAps' && this.pantallaModo === 'centro' && this.pantallaTotalPages > 1) this.nextPantallaPage(); }, 12000);
+  }
   isAdmin() { return this.role === 'ADMIN'; }
   isVisorAps() { return this.role === 'VISOR_APS'; }
-  canUseMainModules() { return !this.isVisorAps(); }
-  canUsePantallaAps() { return this.role === 'ADMIN' || this.role === 'VISOR_APS'; }
-  defaultViewForRole() { return this.isVisorAps() ? 'pantallaAps' : 'dashboard'; }
-  canAccessView(v: any) { if (v === 'pantallaAps') return this.canUsePantallaAps(); if (this.isVisorAps()) return false; if (v === 'usuarios') return this.isAdmin(); if (v === 'errores') return this.canAudit(); return true; }
+  isGestorComunal() { return this.role === 'GESTOR_COMUNAL'; }
+  isGestorRegional() { return this.role === 'GESTOR_REGIONAL'; }
+  isGestorUrgencia() { return this.isGestorComunal() || this.isGestorRegional(); }
+  canUseMainModules() { return !this.isVisorAps() && !this.isGestorUrgencia(); }
+  canUsePantallaAps() { return this.role === 'ADMIN' || this.role === 'VISOR_APS' || this.isGestorUrgencia(); }
+  defaultViewForRole() { return (this.isVisorAps() || this.isGestorUrgencia()) ? 'pantallaAps' : 'dashboard'; }
+  canAccessView(v: any) { if (v === 'pantallaAps') return this.canUsePantallaAps(); if (this.isVisorAps() || this.isGestorUrgencia()) return false; if (v === 'usuarios') return this.isAdmin(); if (v === 'errores') return this.canAudit(); return true; }
   canAudit() { return this.role === 'ADMIN' || this.role === 'AUDITOR'; }
   statusClass(status: string) { return `status-${status || 'PENDIENTE'}`; }
   cleanFile(file: string) { return !file || file === 'string' ? 'Sin archivo informado' : file; }
@@ -816,7 +894,13 @@ export class AppComponent {
         localStorage.setItem('fullName', d.fullName || '');
         localStorage.setItem('role', d.role || '');
         localStorage.setItem('providerName', d.providerName || '');
+        localStorage.setItem('comuna', d.comuna || '');
+        localStorage.setItem('establecimientoCodigo', d.establecimientoCodigo == null ? '' : String(d.establecimientoCodigo));
+        localStorage.setItem('logoUrl', d.logoUrl || '');
         this.token = d.token; this.username = d.username; this.fullName = d.fullName || ''; this.role = d.role || ''; this.providerName = d.providerName || '';
+        this.userComuna = d.comuna || ''; this.userEstablecimientoCodigo = d.establecimientoCodigo ?? null; this.userLogoUrl = d.logoUrl || '';
+        this.pantallaEstablecimiento = this.userEstablecimientoCodigo; this.pantallaComuna = this.userComuna; this.pantallaModo = this.isGestorUrgencia() ? 'red' : 'centro';
+        this.loadPantallaEstablecimientos(); this.loadPantallaComunas();
         this.go(this.defaultViewForRole()); this.toast('Autenticado correctamente');
       },
       error: () => this.error = 'Credenciales no válidas o servicio no disponible.'
@@ -828,7 +912,7 @@ export class AppComponent {
     this.view = target;
     this.refreshCurrent();
   }
-  refreshCurrent() { if (this.view === 'dashboard') this.loadDashboard(); if (this.view === 'sinEventos') this.loadSinEventos(); if (this.view === 'atenciones') this.loadAtenciones(); if (this.view === 'eventos') this.loadEventos(); if (this.view === 'errores') this.loadErrores(); if (this.view === 'usuarios') this.loadUsers(); if (this.view === 'gestion') this.loadGestion(); if (this.view === 'pantallaAps') this.loadPantallaAps(); }
+  refreshCurrent() { if (this.view === 'dashboard') this.loadDashboard(); if (this.view === 'sinEventos') this.loadSinEventos(); if (this.view === 'atenciones') this.loadAtenciones(); if (this.view === 'eventos') this.loadEventos(); if (this.view === 'errores') this.loadErrores(); if (this.view === 'usuarios') this.loadUsers(); if (this.view === 'gestion') this.loadGestion(); if (this.view === 'pantallaAps') { this.loadPantallaAps(); this.loadPantallaRed(false); } }
   toast(message: string) { this.snack.open(message, 'OK', { duration: 2600 }); }
 
   loadDashboard() { this.http.get<any>(`${API}/dau/dashboard`).subscribe(r => this.dash = r.data); }
@@ -1043,7 +1127,36 @@ export class AppComponent {
       .sort((a: any, b: any) => Number(a.value) - Number(b.value));
     this.syncEstablecimientosGenerales();
   }
-  reloadPantallaAps() { this.loadPantallaEstablecimientos(); this.loadPantallaAps(); }
+  loadPantallaComunas() {
+    this.http.get<any>(`${API}/pantallas/aps/comunas`).subscribe({
+      next: r => {
+        this.pantallaComunas = r.data || [];
+        if (this.isGestorComunal() && this.userComuna) this.pantallaComuna = this.userComuna;
+      },
+      error: () => { this.pantallaComunas = []; }
+    });
+  }
+  setPantallaModo(modo: 'centro'|'red') {
+    this.pantallaModo = modo;
+    if (modo === 'red') this.loadPantallaRed();
+    else this.loadPantallaAps();
+  }
+  loadPantallaRed(showToast = true) {
+    let params = new HttpParams();
+    const comuna = this.isGestorComunal() ? this.userComuna : this.pantallaComuna;
+    if (comuna) params = params.set('comuna', comuna);
+    this.http.get<any>(`${API}/pantallas/aps/red`, { params }).subscribe({
+      next: r => { this.pantallaRed = r.data || {}; this.pantallaOnline = true; this.pantallaLastOk = new Date(); },
+      error: e => { this.pantallaOnline = false; if (showToast) this.toast(e?.error?.message || 'No fue posible cargar la red de urgencia'); }
+    });
+  }
+  onPantallaComunaChange() { this.loadPantallaRed(); }
+  get nombrePantallaCentro() {
+    const e = this.pantallaEstablecimientos.find((x: any) => String(x.value) === String(this.pantallaEstablecimiento));
+    return e?.label || this.pantallaAps?.establecimiento || 'Servicio de Urgencia';
+  }
+
+  reloadPantallaAps() { this.loadPantallaEstablecimientos(); this.loadPantallaComunas(); this.loadPantallaAps(); if (this.pantallaModo === 'red') this.loadPantallaRed(false); }
   loadPantallaAps(showToast = true) {
     let params = new HttpParams();
     if (this.pantallaEstablecimiento !== null && this.pantallaEstablecimiento !== undefined) params = params.set('establecimiento', String(this.pantallaEstablecimiento));
@@ -1092,7 +1205,7 @@ export class AppComponent {
   createUser() {
     if (!this.newUser.username || !this.newUser.password || !this.newUser.fullName) { this.toast('Complete username, clave y nombre.'); return; }
     this.http.post<any>(`${API}/admin/users`, this.newUser).subscribe({
-      next: () => { this.toast('Usuario creado'); this.newUser = { username: '', password: '', fullName: '', email: '', providerName: '', role: 'VISUALIZADOR', enabled: true }; this.loadUsers(); },
+      next: () => { this.toast('Usuario creado'); this.newUser = { username: '', password: '', fullName: '', email: '', providerName: '', role: 'VISUALIZADOR', enabled: true, comuna: '', establecimientoCodigo: null, logoUrl: '' }; this.loadUsers(); },
       error: e => this.toast(e?.error?.message || 'No fue posible crear el usuario')
     });
   }
@@ -1101,8 +1214,12 @@ export class AppComponent {
     const fullName = prompt('Nombre completo', u.fullName || ''); if (fullName === null) return;
     const email = prompt('Email', u.email || ''); if (email === null) return;
     const providerName = prompt('Proveedor / origen', u.providerName || ''); if (providerName === null) return;
-    const role = prompt('Rol: ADMIN, INTEGRADOR, GESTOR_RED, VISUALIZADOR, AUDITOR, VISOR_APS', u.role || 'VISUALIZADOR'); if (role === null) return;
-    const body = { username: u.username, fullName, email, providerName, role, enabled: u.enabled };
+    const role = prompt('Rol: ADMIN, INTEGRADOR, GESTOR_RED, VISUALIZADOR, AUDITOR, VISOR_APS, GESTOR_COMUNAL, GESTOR_REGIONAL', u.role || 'VISUALIZADOR'); if (role === null) return;
+    const comuna = prompt('Comuna asociada (opcional)', u.comuna || '') ?? u.comuna;
+    const establecimientoRaw = prompt('Código establecimiento asociado (opcional)', u.establecimientoCodigo == null ? '' : String(u.establecimientoCodigo));
+    const establecimientoCodigo = establecimientoRaw && establecimientoRaw.trim() ? Number(establecimientoRaw) : null;
+    const logoUrl = prompt('URL logo del centro (opcional)', u.logoUrl || '') ?? u.logoUrl;
+    const body = { username: u.username, fullName, email, providerName, role, enabled: u.enabled, comuna, establecimientoCodigo, logoUrl };
     this.http.put<any>(`${API}/admin/users/${u.id}`, body).subscribe({
       next: () => {
         const newPass = prompt('Nueva clave opcional. Deje vacío para no cambiarla.', '');

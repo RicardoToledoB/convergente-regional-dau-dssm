@@ -2,6 +2,7 @@ package cl.dssm.dau.service;
 
 import cl.dssm.dau.dto.PantallaApsResponse;
 import cl.dssm.dau.dto.EstablecimientoPantallaResponse;
+import cl.dssm.dau.dto.RedUrgenciaResponse;
 import cl.dssm.dau.entity.DauAttentionEntity;
 import cl.dssm.dau.model.DauEstado;
 import cl.dssm.dau.repository.DauAttentionRepository;
@@ -82,6 +83,91 @@ public class PantallaApsService {
                 distribucion(activos, a -> displayCategoriaCodigo(categoria(a)), c -> c + " · " + displayCategoriaNombre(codigoDesdeDisplay(c))),
                 distribucion(activos, a -> tramoHorario(a), c -> displayTramo(c))
         );
+    }
+
+
+    public List<String> getComunas() {
+        return getEstablecimientos().stream()
+                .map(e -> comunaEstablecimiento(e.codigo()))
+                .filter(Objects::nonNull)
+                .distinct()
+                .sorted()
+                .toList();
+    }
+
+    public RedUrgenciaResponse getRedUrgencia(String comuna) {
+        String comunaNormalizada = trimToNull(comuna);
+        List<EstablecimientoPantallaResponse> establecimientos = getEstablecimientos().stream()
+                .filter(e -> comunaNormalizada == null || comunaNormalizada.equalsIgnoreCase(comunaEstablecimiento(e.codigo())))
+                .toList();
+
+        List<RedUrgenciaResponse.CentroUrgencia> centros = establecimientos.stream()
+                .map(e -> {
+                    PantallaApsResponse p = getPantalla(e.codigo());
+                    Map<String, String> tiempos = p.tiemposPorCategoria().stream()
+                            .collect(Collectors.toMap(PantallaApsResponse.CategoriaTiempo::categoria,
+                                    PantallaApsResponse.CategoriaTiempo::tiempo,
+                                    (a, b) -> a, LinkedHashMap::new));
+                    return new RedUrgenciaResponse.CentroUrgencia(
+                            e.codigo(),
+                            e.nombre(),
+                            comunaEstablecimiento(e.codigo()),
+                            tiempos.getOrDefault("C1", "00:00"),
+                            tiempos.getOrDefault("C2", "00:00"),
+                            tiempos.getOrDefault("C3", "00:00"),
+                            tiempos.getOrDefault("C4", "00:00"),
+                            tiempos.getOrDefault("C5", "00:00"),
+                            tiempos.getOrDefault("S/C", "00:00"),
+                            p.pacientesEnEspera(),
+                            p.pacientesEnAtencion(),
+                            p.tiempoPromedioEspera()
+                    );
+                })
+                .toList();
+
+        long totalEspera = centros.stream().mapToLong(RedUrgenciaResponse.CentroUrgencia::pacientesEnEspera).sum();
+        long totalAtencion = centros.stream().mapToLong(RedUrgenciaResponse.CentroUrgencia::pacientesEnAtencion).sum();
+        long centrosActivos = centros.stream().filter(c -> c.pacientesEnEspera() + c.pacientesEnAtencion() > 0).count();
+        long totalMinutosPonderados = 0;
+        long totalPacientesEspera = 0;
+        for (RedUrgenciaResponse.CentroUrgencia c : centros) {
+            long n = c.pacientesEnEspera();
+            if (n <= 0) continue;
+            totalMinutosPonderados += parseMinutos(c.tiempoPromedioEspera()) * n;
+            totalPacientesEspera += n;
+        }
+        long promedio = totalPacientesEspera == 0 ? 0 : Math.round((double) totalMinutosPonderados / totalPacientesEspera);
+
+        return new RedUrgenciaResponse(
+                comunaNormalizada == null ? "REGIONAL" : "COMUNAL",
+                comunaNormalizada == null ? "Todas las comunas" : comunaNormalizada,
+                totalEspera,
+                totalAtencion,
+                formatoMinutos(promedio),
+                centrosActivos,
+                centros
+        );
+    }
+
+    public String comunaEstablecimiento(Integer codigo) {
+        if (codigo == null) return "Sin comuna";
+        return switch (codigo) {
+            case 126801, 126800, 126900, 201069, 126100 -> "Punta Arenas";
+            case 201079, 126101, 121105 -> "Puerto Natales";
+            case 126102, 121110, 121102 -> "Porvenir";
+            case 126704, 121120, 121108 -> "Cabo de Hornos";
+            default -> "Otra comuna";
+        };
+    }
+
+    private long parseMinutos(String hhmm) {
+        try {
+            if (hhmm == null || hhmm.isBlank() || "--".equals(hhmm)) return 0;
+            String[] p = hhmm.split(":");
+            return Long.parseLong(p[0]) * 60 + Long.parseLong(p[1]);
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
 

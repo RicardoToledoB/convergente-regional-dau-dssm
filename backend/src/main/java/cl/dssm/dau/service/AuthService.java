@@ -30,8 +30,10 @@ public class AuthService {
         var token = jwtService.generateToken(userDetails, Map.of(
                 "role", user.getRole().name(),
                 "fullName", user.getFullName(),
-                "providerName", user.getProviderName() == null ? "" : user.getProviderName()
+                "providerName", user.getProviderName() == null ? "" : user.getProviderName(),
+                "comuna", user.getComuna() == null ? "" : user.getComuna(),
+                "establecimientoCodigo", user.getEstablecimientoCodigo() == null ? "" : user.getEstablecimientoCodigo().toString()
         ));
-        return new AuthResponse(token, user.getUsername(), user.getFullName(), user.getRole().name(), user.getProviderName());
+        return new AuthResponse(token, user.getUsername(), user.getFullName(), user.getRole().name(), user.getProviderName(), user.getComuna(), user.getEstablecimientoCodigo(), user.getLogoUrl());
     }
 }

@@ -553,3 +553,17 @@ td small { display: block; color: var(--muted); margin-top: 3px; }
   .sidenav.collapsed .nav button { justify-content: flex-start; padding: 0 14px !important; }
   .sidenav.collapsed .nav button mat-icon { margin-right: 12px; }
 }
+
+/* v4.5.0 Visor Integrado de Urgencia */
+.aps-logo img { width: 100%; height: 100%; object-fit: contain; border-radius: 999px; background: white; }
+.visor-controls { grid-template-columns: auto minmax(250px, 420px) 1fr auto !important; }
+.aps-scope-note { display: inline-flex; align-items: center; gap: 8px; color: #064d84; font-weight: 800; padding: 9px 14px; background: #edf7ff; border-radius: 12px; border: 1px solid #cfe7f8; }
+.red-urgencia-card { margin-bottom: 18px; }
+.red-urgencia-table { min-width: 1080px; }
+.red-urgencia-table th:first-child, .red-urgencia-table td:first-child { min-width: 260px; text-align: left; }
+.red-urgencia-table td { font-variant-numeric: tabular-nums; }
+.red-urgencia-table td.cat-c1, .red-urgencia-table td.cat-c2, .red-urgencia-table td.cat-c3, .red-urgencia-table td.cat-c4, .red-urgencia-table td.cat-c5, .red-urgencia-table td.cat-sc { font-weight: 800; }
+.red-centro-name { color: #063d72; font-weight: 800; }
+.gestor-kpis .aps-kpi.max { background: linear-gradient(135deg, #eef2ff, #f8faff); }
+.gestor-kpis .aps-kpi.max mat-icon { background: #dbeafe; color: #1d4ed8; }
+@media (max-width: 1180px) { .visor-controls { grid-template-columns: 1fr !important; } }

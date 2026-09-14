@@ -40,6 +40,9 @@ public class UserAdminController {
         u.setProviderName(request.providerName());
         u.setRole(request.role());
         u.setEnabled(request.enabled() == null || request.enabled());
+        u.setComuna(request.comuna());
+        u.setEstablecimientoCodigo(request.establecimientoCodigo());
+        u.setLogoUrl(request.logoUrl());
         return new ApiResponse<>(true, "Usuario creado", toResponse(users.save(u)));
     }
 
@@ -51,6 +54,9 @@ public class UserAdminController {
         if (request.providerName() != null) u.setProviderName(request.providerName());
         if (request.role() != null) u.setRole(request.role());
         if (request.enabled() != null) u.setEnabled(request.enabled());
+        if (request.comuna() != null) u.setComuna(request.comuna());
+        if (request.establecimientoCodigo() != null) u.setEstablecimientoCodigo(request.establecimientoCodigo());
+        if (request.logoUrl() != null) u.setLogoUrl(request.logoUrl());
         return new ApiResponse<>(true, "Usuario actualizado", toResponse(users.save(u)));
     }
 
@@ -69,6 +75,6 @@ public class UserAdminController {
     }
 
     private UserResponse toResponse(UserAccount u) {
-        return new UserResponse(u.getId(), u.getUsername(), u.getFullName(), u.getEmail(), u.getProviderName(), u.getRole(), u.getEnabled(), u.getCreatedAt(), u.getUpdatedAt(), u.getLastLogin());
+        return new UserResponse(u.getId(), u.getUsername(), u.getFullName(), u.getEmail(), u.getProviderName(), u.getRole(), u.getEnabled(), u.getComuna(), u.getEstablecimientoCodigo(), u.getLogoUrl(), u.getCreatedAt(), u.getUpdatedAt(), u.getLastLogin());
     }
 }

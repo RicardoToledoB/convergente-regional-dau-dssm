@@ -6,5 +6,7 @@ public enum Role {
     GESTOR_RED,
     VISUALIZADOR,
     AUDITOR,
-    VISOR_APS
+    VISOR_APS,
+    GESTOR_COMUNAL,
+    GESTOR_REGIONAL
 }
