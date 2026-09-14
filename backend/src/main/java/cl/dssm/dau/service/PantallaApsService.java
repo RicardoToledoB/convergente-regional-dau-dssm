@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.text.Normalizer;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -270,6 +271,12 @@ public class PantallaApsService {
         if (a.getEstadoActual() == DauEstado.ALTA_MEDICA || a.getEstadoActual() == DauEstado.ERROR) return false;
         if (trimToNull(a.getFechaAlta()) != null && trimToNull(a.getHoraAlta()) != null) return false;
 
+        // RAYEN confirmó que las admisiones cuyo motivo es "TRATAMIENTO O CURACIÓN"
+        // corresponden a un flujo que sólo genera admisión y no continúa con
+        // categorización, atención médica ni alta. Por ello se conservan en el
+        // histórico/consolidado, pero no participan del visor operacional.
+        if (esTratamientoOCuracion(a)) return false;
+
         LocalDateTime adm = parseFechaHora(a.getFechaAdminision(), a.getHoraAdmision());
         if (adm == null || adm.isAfter(now)) return false;
 
@@ -279,6 +286,30 @@ public class PantallaApsService {
 
         long minutos = Duration.between(referencia, now).toMinutes();
         return minutos >= 0 && minutos <= 24 * 60;
+    }
+
+    private boolean esTratamientoOCuracion(DauAttentionEntity a) {
+        if (a == null) return false;
+        String motivo = normalizaTextoOperacion(a.getMotivoConsulta());
+        return "TRATAMIENTO O CURACION".equals(motivo);
+    }
+
+    /**
+     * Normalización deliberadamente conservadora para reglas operacionales:
+     * - elimina tildes/diacríticos,
+     * - ignora mayúsculas/minúsculas,
+     * - colapsa espacios.
+     * No se hacen búsquedas parciales ni por palabras sueltas.
+     */
+    private String normalizaTextoOperacion(String valor) {
+        String texto = trimToNull(valor);
+        if (texto == null) return null;
+        String sinDiacriticos = Normalizer.normalize(texto, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "");
+        return sinDiacriticos
+                .toUpperCase(Locale.ROOT)
+                .replaceAll("\\s+", " ")
+                .trim();
     }
 
     private boolean estaEnAtencion(DauAttentionEntity a) {

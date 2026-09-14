@@ -117,3 +117,6 @@ Nuevo endpoint protegido `GET /api/patient/{rut}` para consultar el arreglo cron
 
 ## V4.5.4 · Auditoría ADMIN por RUT
 Se incorpora auditoría por hover de las cantidades del Visor Integrado. Sólo ADMIN puede consultar los RUT que componen Espera, Atención y categorizaciones. Ver `README_V4_5_4_AUDITORIA_ADMIN_HOVER.md`.
+
+## V4.5.5 – Exclusión operacional Tratamiento/Curación
+Se excluyen del Visor Integrado, KPI y auditoría operacional ADMIN los DAU cuyo `motivoConsulta` normalizado sea exactamente `TRATAMIENTO O CURACION`, conforme a la validación de RAYEN. Los eventos y consolidados se preservan íntegramente. Ver `README_V4_5_5_EXCLUSION_TRATAMIENTO_CURACION.md`.
