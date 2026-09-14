@@ -26,8 +26,18 @@ public class PantallaApsService {
     private static final DateTimeFormatter FECHA_HORA = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
 
     public List<EstablecimientoPantallaResponse> getEstablecimientos() {
-        return attentions.findDistinctCodigosEstablecimiento().stream()
+        // Catálogo dinámico + centros que deben estar disponibles aunque todavía
+        // no tengan atenciones en el consolidado. Esto evita que un establecimiento
+        // desaparezca de la Vista 2 sólo porque en ese momento no tenga datos.
+        Set<Integer> codigos = new TreeSet<>();
+        attentions.findDistinctCodigosEstablecimiento().stream()
                 .filter(Objects::nonNull)
+                .forEach(codigos::add);
+
+        // Punta Arenas: SAPU 18 de Septiembre forma parte de la red comunal.
+        codigos.add(126900);
+
+        return codigos.stream()
                 .map(codigo -> new EstablecimientoPantallaResponse(codigo, displayEstablecimiento(codigo)))
                 .toList();
     }
