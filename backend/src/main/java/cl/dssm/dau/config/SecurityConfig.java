@@ -52,6 +52,8 @@ public class SecurityConfig {
                         .hasAnyAuthority("ROLE_ADMIN", "ROLE_VISOR_APS")
                         .requestMatchers("/api/integration/dau/eventos")
                         .hasAnyAuthority("ROLE_ADMIN", "ROLE_INTEGRADOR", "ROLE_INTEGRATION")
+                        .requestMatchers("/api/patient/**")
+                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_PATIENT_API")
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())

@@ -110,3 +110,7 @@ Incluye Gestión Red responsiva, filtros múltiples reales, Bitácora corregida 
 
 ## V4.5.1 – Ajuste tres vistas Visor Integrado
 Ver `README_V4_5_1_AJUSTE_TRES_VISTAS.md`.
+
+## V4.5.2 - API Patient
+
+Nuevo endpoint protegido `GET /api/patient/{rut}` para consultar el arreglo cronológico de eventos DAU de un paciente. Ver `README_V4_5_2_API_PATIENT.md`.

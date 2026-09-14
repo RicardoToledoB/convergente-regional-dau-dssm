@@ -14,6 +14,15 @@ import java.util.Optional;
 public interface DauAttentionRepository extends JpaRepository<DauAttentionEntity, Long> {
     Optional<DauAttentionEntity> findByIdDauAndIdAtencion(String idDau, String idAtencion);
 
+    @Query("""
+            SELECT DISTINCT a.idDau
+            FROM DauAttentionEntity a
+            WHERE a.run = :run
+              AND (:dv IS NULL OR UPPER(a.dv) = UPPER(:dv))
+            ORDER BY a.idDau
+            """)
+    List<String> findDistinctIdDauByPatientRut(@Param("run") String run, @Param("dv") String dv);
+
     Page<DauAttentionEntity> findByEstadoActual(DauEstado estado, Pageable pageable);
 
     @Query(value = """

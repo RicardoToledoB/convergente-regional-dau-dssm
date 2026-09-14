@@ -8,12 +8,15 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 public interface DauEventRepository extends JpaRepository<DauEventEntity, Long> {
     Optional<DauEventEntity> findByHashPayload(String hashPayload);
     Page<DauEventEntity> findByEstadoProcesamiento(EstadoProcesamiento estado, Pageable pageable);
     Page<DauEventEntity> findByIdDauAndIdAtencion(String idDau, String idAtencion, Pageable pageable);
+    List<DauEventEntity> findByIdDauInOrderByFechaRecepcionAsc(Collection<String> idDaus);
 
     @Query(value = """
             SELECT * FROM dau_eventos_recibidos e
