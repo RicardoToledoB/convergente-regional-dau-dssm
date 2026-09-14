@@ -600,12 +600,11 @@ class DetailDialogComponent {
               <!-- Los monitores físicos VISOR_APS rotan automáticamente entre Vista 1 y Vista 2. -->
               <mat-card class="aps-selector-card visor-controls" *ngIf="!isVisorAps()">
                 <div class="aps-quick-tabs" *ngIf="isAdmin()">
-                  <button mat-stroked-button [class.active]="pantallaModo==='centro'" (click)="setPantallaModo('centro')"><mat-icon>local_hospital</mat-icon> Vista 1 · Mi urgencia</button>
-                  <button mat-stroked-button [class.active]="pantallaModo==='comuna'" (click)="setPantallaModo('comuna')"><mat-icon>hub</mat-icon> Vista 2 · Red de mi comuna</button>
+                  <button mat-stroked-button [class.active]="pantallaModo!=='gestion'" (click)="setPantallaSala()"><mat-icon>tv</mat-icon> Sala de espera · rotación 10 s</button>
                   <button mat-stroked-button [class.active]="pantallaModo==='gestion'" (click)="setPantallaModo('gestion')"><mat-icon>monitoring</mat-icon> Perfil 2 · Gestión</button>
                 </div>
 
-                <mat-form-field *ngIf="isAdmin() && (pantallaModo==='centro' || pantallaModo==='comuna')" appearance="outline" class="aps-select">
+                <mat-form-field *ngIf="isAdmin() && pantallaModo!=='gestion'" appearance="outline" class="aps-select">
                   <mat-label>Establecimiento</mat-label>
                   <mat-select [(ngModel)]="pantallaEstablecimiento" (selectionChange)="onPantallaEstablecimientoChange()">
                     <mat-option *ngFor="let e of pantallaEstablecimientos" [value]="e.value">{{e.label}}</mat-option>
@@ -627,7 +626,7 @@ class DetailDialogComponent {
               </mat-card>
 
               <!-- PERFIL 1 · VISTA 1: información del propio establecimiento. -->
-              <ng-container *ngIf="pantallaModo==='centro'">
+              <div *ngIf="pantallaModo==='centro'" class="aps-rotation-view">
                 <div class="aps-kpi-row sala-kpis">
                   <mat-card class="aps-kpi wait"><mat-icon>groups</mat-icon><div><span>Pacientes en espera</span><strong>{{pantallaAps?.pacientesEnEspera || 0}}</strong></div></mat-card>
                   <mat-card class="aps-kpi care"><mat-icon>medical_services</mat-icon><div><span>Pacientes en atención</span><strong>{{pantallaAps?.pacientesEnAtencion || 0}}</strong></div></mat-card>
@@ -644,10 +643,10 @@ class DetailDialogComponent {
                     </div>
                   </div>
                 </mat-card>
-              </ng-container>
+              </div>
 
               <!-- PERFIL 1 · VISTA 2: otros establecimientos de la misma comuna. Sin KPI de gestión. -->
-              <ng-container *ngIf="pantallaModo==='comuna'">
+              <div *ngIf="pantallaModo==='comuna'" class="aps-rotation-view">
                 <mat-card class="aps-table-card red-urgencia-card sala-red-card">
                   <div class="aps-table-title">
                     <h3><mat-icon>hub</mat-icon>Red de urgencia · {{pantallaRed?.comuna || comunaSalaActual}}</h3>
@@ -667,7 +666,7 @@ class DetailDialogComponent {
                     </table>
                   </div>
                 </mat-card>
-              </ng-container>
+              </div>
 
               <!-- PERFIL 2: gestor comunal/regional. Tabla primero y KPI consolidados al pie, según requerimiento. -->
               <ng-container *ngIf="pantallaModo==='gestion'">
@@ -810,7 +809,6 @@ export class AppComponent {
   pantallaRed: any = null;
   pantallaComunas: string[] = [];
   pantallaComuna = '';
-  private visorRotationTick = 0;
 
   get title() {
     return ({ dashboard: 'Dashboard operacional', sinEventos: 'DAU sin nuevos eventos', atenciones: 'Monitor DAU', eventos: 'Bitácora de eventos', errores: 'Errores de integración', usuarios: 'Administración de usuarios', gestion: 'Gestión Red de Urgencia', pantallaAps: 'Visor Integrado de Urgencia' } as any)[this.view];
@@ -829,17 +827,19 @@ export class AppComponent {
       this.loadPantallaComunas();
       this.go(this.defaultViewForRole());
     }
+    // Reloj del monitor.
     setInterval(() => {
       this.pantallaNow = new Date();
-      if (this.token && this.view === 'pantallaAps') {
-        if (this.isVisorAps()) {
-          this.visorRotationTick++;
-          if (this.visorRotationTick % 2 === 0) this.pantallaModo = this.pantallaModo === 'centro' ? 'comuna' : 'centro';
-        }
-        if (this.pantallaModo === 'centro') this.loadPantallaAps(false);
-        else this.loadPantallaRed(false);
-      }
-    }, 15000);
+    }, 1000);
+
+    // PERFIL 1: Vista 1 y Vista 2 son un único acceso para la sala de espera.
+    // Mientras el visor esté en modo sala, alterna automáticamente cada 10 segundos.
+    setInterval(() => {
+      if (!this.token || this.view !== 'pantallaAps' || this.pantallaModo === 'gestion') return;
+      this.pantallaModo = this.pantallaModo === 'centro' ? 'comuna' : 'centro';
+      if (this.pantallaModo === 'centro') this.loadPantallaAps(false);
+      else this.loadPantallaRed(false);
+    }, 10000);
   }
   isAdmin() { return this.role === 'ADMIN'; }
   isVisorAps() { return this.role === 'VISOR_APS'; }
@@ -1129,6 +1129,13 @@ export class AppComponent {
       error: () => { this.pantallaComunas = []; }
     });
   }
+  setPantallaSala() {
+    this.pantallaModo = 'centro';
+    this.loadPantallaAps(false);
+    // Precarga la Vista 2 con la comuna del establecimiento para que la transición sea inmediata.
+    this.loadPantallaRed(false);
+  }
+
   setPantallaModo(modo: 'centro'|'comuna'|'gestion') {
     this.pantallaModo = modo;
     if (modo === 'centro') this.loadPantallaAps();
@@ -1186,13 +1193,19 @@ export class AppComponent {
 
   loadPantallaRed(showToast = true) {
     let params = new HttpParams();
-    let comuna = '';
-    if (this.pantallaModo === 'comuna') {
-      comuna = this.comunaSalaActual;
+
+    // Perfil 1 (sala): el alcance se deriva SIEMPRE del establecimiento asociado/seleccionado.
+    // El backend vuelve a derivar la comuna desde este código, evitando una vista regional accidental.
+    if (this.pantallaModo !== 'gestion') {
+      const codigo = this.pantallaEstablecimiento ?? this.userEstablecimientoCodigo;
+      if (codigo !== null && codigo !== undefined) params = params.set('establecimiento', String(codigo));
+      const comuna = this.comunaSalaActual;
+      if (comuna) params = params.set('comuna', comuna);
     } else {
-      comuna = this.isGestorComunal() ? this.userComuna : this.pantallaComuna;
+      const comuna = this.isGestorComunal() ? this.userComuna : this.pantallaComuna;
+      if (comuna) params = params.set('comuna', comuna);
     }
-    if (comuna) params = params.set('comuna', comuna);
+
     this.http.get<any>(`${API}/pantallas/aps/red`, { params }).subscribe({
       next: r => { this.pantallaRed = r.data || {}; this.pantallaOnline = true; this.pantallaLastOk = new Date(); },
       error: e => { this.pantallaOnline = false; if (showToast) this.toast(e?.error?.message || 'No fue posible cargar la red de urgencia'); }
@@ -1203,7 +1216,8 @@ export class AppComponent {
 
   onPantallaEstablecimientoChange() {
     this.loadPantallaAps(false);
-    if (this.pantallaModo === 'comuna') this.loadPantallaRed(false);
+    // Vista 1 y Vista 2 forman una sola pantalla de sala: al cambiar centro se refrescan ambas.
+    if (this.pantallaModo !== 'gestion') this.loadPantallaRed(false);
   }
 
   get nombrePantallaCentro() {
@@ -1214,8 +1228,12 @@ export class AppComponent {
   reloadPantallaAps() {
     this.loadPantallaEstablecimientos();
     this.loadPantallaComunas();
-    if (this.pantallaModo === 'centro') this.loadPantallaAps();
-    else this.loadPantallaRed(false);
+    if (this.pantallaModo === 'gestion') {
+      this.loadPantallaRed(false);
+      return;
+    }
+    this.loadPantallaAps(false);
+    this.loadPantallaRed(false);
   }
   loadPantallaAps(showToast = true) {
     let params = new HttpParams();

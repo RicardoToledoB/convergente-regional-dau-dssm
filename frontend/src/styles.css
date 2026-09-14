@@ -588,3 +588,13 @@ td small { display: block; color: var(--muted); margin-top: 3px; }
 .gestor-kpis .aps-kpi.avg mat-icon { background: #fed7aa; color: #b45309; }
 .gestor-kpis .aps-kpi.max { background: linear-gradient(135deg, #ffe8e8, #fff8f8); }
 .gestor-kpis .aps-kpi.max mat-icon { background: #fecaca; color: #dc2626; }
+
+
+/* V4.5.3 · transición automática de las dos vistas del monitor de sala */
+.aps-rotation-view {
+  animation: apsViewFadeIn .35s ease-out;
+}
+@keyframes apsViewFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
