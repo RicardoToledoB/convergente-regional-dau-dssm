@@ -584,8 +584,8 @@ class DetailDialogComponent {
                     <ng-container *ngIf="!userLogoUrl"><mat-icon>groups</mat-icon><small>URG</small></ng-container>
                   </div>
                   <div>
-                    <h2>{{pantallaModo === 'centro' ? nombrePantallaCentro : ('Red Urgencia · ' + (pantallaRed?.comuna || pantallaComuna || 'Regional'))}}</h2>
-                    <p>{{pantallaModo === 'centro' ? 'Información Servicio de Urgencia' : 'Visión integrada de la red asistencial'}}</p>
+                    <h2>{{pantallaTitulo}}</h2>
+                    <p>{{pantallaSubtitulo}}</p>
                   </div>
                 </div>
                 <div class="aps-header-right">
@@ -597,112 +597,106 @@ class DetailDialogComponent {
                 </div>
               </div>
 
-              <mat-card class="aps-selector-card visor-controls">
-                <div class="aps-quick-tabs">
-                  <button mat-stroked-button [class.active]="pantallaModo==='centro'" (click)="setPantallaModo('centro')"><mat-icon>local_hospital</mat-icon> Mi urgencia</button>
-                  <button mat-stroked-button [class.active]="pantallaModo==='red'" (click)="setPantallaModo('red')"><mat-icon>hub</mat-icon> Red de urgencia</button>
+              <!-- Los monitores físicos VISOR_APS rotan automáticamente entre Vista 1 y Vista 2. -->
+              <mat-card class="aps-selector-card visor-controls" *ngIf="!isVisorAps()">
+                <div class="aps-quick-tabs" *ngIf="isAdmin()">
+                  <button mat-stroked-button [class.active]="pantallaModo==='centro'" (click)="setPantallaModo('centro')"><mat-icon>local_hospital</mat-icon> Vista 1 · Mi urgencia</button>
+                  <button mat-stroked-button [class.active]="pantallaModo==='comuna'" (click)="setPantallaModo('comuna')"><mat-icon>hub</mat-icon> Vista 2 · Red de mi comuna</button>
+                  <button mat-stroked-button [class.active]="pantallaModo==='gestion'" (click)="setPantallaModo('gestion')"><mat-icon>monitoring</mat-icon> Perfil 2 · Gestión</button>
                 </div>
-                <mat-form-field *ngIf="pantallaModo==='centro' && (isAdmin() || !userEstablecimientoCodigo)" appearance="outline" class="aps-select">
+
+                <mat-form-field *ngIf="isAdmin() && (pantallaModo==='centro' || pantallaModo==='comuna')" appearance="outline" class="aps-select">
                   <mat-label>Establecimiento</mat-label>
-                  <mat-select [(ngModel)]="pantallaEstablecimiento" (selectionChange)="loadPantallaAps()">
+                  <mat-select [(ngModel)]="pantallaEstablecimiento" (selectionChange)="onPantallaEstablecimientoChange()">
                     <mat-option *ngFor="let e of pantallaEstablecimientos" [value]="e.value">{{e.label}}</mat-option>
                   </mat-select>
                 </mat-form-field>
-                <mat-form-field *ngIf="pantallaModo==='red' && (isAdmin() || isGestorRegional())" appearance="outline" class="aps-select">
+
+                <mat-form-field *ngIf="pantallaModo==='gestion' && (isAdmin() || isGestorRegional())" appearance="outline" class="aps-select">
                   <mat-label>Comuna</mat-label>
                   <mat-select [(ngModel)]="pantallaComuna" (selectionChange)="onPantallaComunaChange()">
                     <mat-option value="">Todas las comunas</mat-option>
                     <mat-option *ngFor="let c of pantallaComunas" [value]="c">{{c}}</mat-option>
                   </mat-select>
                 </mat-form-field>
-                <div class="aps-scope-note" *ngIf="pantallaModo==='red' && isGestorComunal()"><mat-icon>location_on</mat-icon>{{userComuna || 'Comuna asociada'}}</div>
+
+                <div class="aps-scope-note" *ngIf="pantallaModo==='gestion' && isGestorComunal()"><mat-icon>location_on</mat-icon>{{userComuna || 'Comuna asociada'}}</div>
+                <div class="aps-scope-note" *ngIf="pantallaModo==='comuna'"><mat-icon>location_on</mat-icon>{{comunaSalaActual || 'Comuna del establecimiento'}}</div>
                 <div class="aps-selector-spacer"></div>
                 <button mat-icon-button matTooltip="Recargar" (click)="reloadPantallaAps()"><mat-icon>refresh</mat-icon></button>
               </mat-card>
 
+              <!-- PERFIL 1 · VISTA 1: información del propio establecimiento. -->
               <ng-container *ngIf="pantallaModo==='centro'">
-              <div class="aps-kpi-row">
-                <mat-card class="aps-kpi wait"><mat-icon>groups</mat-icon><div><span>Pacientes en espera</span><strong>{{pantallaAps?.pacientesEnEspera || 0}}</strong></div></mat-card>
-                <mat-card class="aps-kpi care"><mat-icon>medical_services</mat-icon><div><span>Pacientes en atención</span><strong>{{pantallaAps?.pacientesEnAtencion || 0}}</strong></div></mat-card>
-                <mat-card class="aps-kpi avg"><mat-icon>schedule</mat-icon><div><span>Tiempo promedio de espera</span><strong>{{pantallaAps?.tiempoPromedioEspera || '00:00'}}</strong></div></mat-card>
-                <mat-card class="aps-kpi max"><mat-icon>timer</mat-icon><div><span>Tiempo máximo de espera</span><strong>{{pantallaAps?.tiempoMaximoEspera || '00:00'}}</strong></div></mat-card>
-              </div>
+                <div class="aps-kpi-row sala-kpis">
+                  <mat-card class="aps-kpi wait"><mat-icon>groups</mat-icon><div><span>Pacientes en espera</span><strong>{{pantallaAps?.pacientesEnEspera || 0}}</strong></div></mat-card>
+                  <mat-card class="aps-kpi care"><mat-icon>medical_services</mat-icon><div><span>Pacientes en atención</span><strong>{{pantallaAps?.pacientesEnAtencion || 0}}</strong></div></mat-card>
+                  <mat-card class="aps-kpi avg"><mat-icon>schedule</mat-icon><div><span>Tiempo promedio de espera</span><strong>{{pantallaAps?.tiempoPromedioEspera || '00:00'}}</strong></div></mat-card>
+                </div>
 
-              <mat-card class="aps-category-card">
-                <h3><mat-icon>bar_chart</mat-icon>Tiempo de espera por categorización</h3>
-                <div class="aps-category-grid">
-                  <div class="aps-category" *ngFor="let c of pantallaAps?.tiemposPorCategoria || []" [ngClass]="categoryCss(c.categoria)">
-                    <strong>{{c.categoria}}</strong>
-                    <span>{{c.tiempo}}</span>
-                    <small class="aps-category-count">{{c.total || 0}} {{(c.total || 0) === 1 ? 'paciente' : 'pacientes'}}</small>
-                  </div>
-                </div>
-              </mat-card>
-
-              <mat-card class="aps-table-card">
-                <div class="aps-table-title">
-                  <h3><mat-icon>format_list_bulleted</mat-icon>Pacientes en espera / atención</h3>
-                  <span>Mostrando página {{pantallaPage + 1}} de {{pantallaTotalPages}}</span>
-                </div>
-                <div class="aps-table-scroll">
-                  <table class="aps-public-table">
-                    <thead><tr><th>#</th><th>Categorización</th><th>Tiempo transcurrido</th><th>Estado</th></tr></thead>
-                    <tbody>
-                      <tr *ngFor="let p of pantallaRows; let i = index">
-                        <td>{{pantallaPage * pantallaPageSize + i + 1}}</td>
-                        <td><span class="category-pill" [ngClass]="categoryCss(p.categoria)">{{p.categoria}}</span></td>
-                        <td>{{p.tiempoTranscurrido}}</td>
-                        <td><span class="aps-state-dot" [class.attending]="p.estado==='En atención'"></span>{{p.estado}}</td>
-                      </tr>
-                      <tr *ngIf="!pantallaRows.length"><td colspan="4" class="empty-aps">Sin pacientes activos para el establecimiento seleccionado.</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-                <div class="aps-pager" *ngIf="pantallaTotalPages > 1">
-                  <button mat-icon-button (click)="prevPantallaPage()"><mat-icon>chevron_left</mat-icon></button>
-                  <button mat-button *ngFor="let n of pantallaPages" [class.active]="n===pantallaPage" (click)="pantallaPage=n">{{n+1}}</button>
-                  <button mat-icon-button (click)="nextPantallaPage()"><mat-icon>chevron_right</mat-icon></button>
-                </div>
-              </mat-card>
-
-              <div class="aps-mini-grid">
-                <mat-card class="aps-mini-card" *ngFor="let chart of pantallaCharts">
-                  <h3><mat-icon>{{chart.icon}}</mat-icon>{{chart.title}}</h3>
-                  <div class="aps-mini-row" *ngFor="let item of chart.items">
-                    <label>{{item.nombre}}</label>
-                    <div class="aps-mini-track"><span [style.width.%]="item.width"></span></div>
-                    <strong>{{item.total}}</strong>
+                <mat-card class="aps-category-card sala-category-card">
+                  <h3><mat-icon>bar_chart</mat-icon>Tiempo de espera por categorización</h3>
+                  <div class="aps-category-grid">
+                    <div class="aps-category" *ngFor="let c of pantallaAps?.tiemposPorCategoria || []" [ngClass]="categoryCss(c.categoria)">
+                      <strong>{{c.categoria}}</strong>
+                      <span>{{c.tiempo}}</span>
+                      <small class="aps-category-count">{{c.total || 0}} {{(c.total || 0) === 1 ? 'paciente' : 'pacientes'}}</small>
+                    </div>
                   </div>
                 </mat-card>
-              </div>
               </ng-container>
 
-              <ng-container *ngIf="pantallaModo==='red'">
-                <div class="aps-kpi-row gestor-kpis">
-                  <mat-card class="aps-kpi wait"><mat-icon>groups</mat-icon><div><span>Total en espera</span><strong>{{pantallaRed?.totalEnEspera || 0}}</strong></div></mat-card>
-                  <mat-card class="aps-kpi care"><mat-icon>medical_services</mat-icon><div><span>En atención</span><strong>{{pantallaRed?.totalEnAtencion || 0}}</strong></div></mat-card>
-                  <mat-card class="aps-kpi avg"><mat-icon>schedule</mat-icon><div><span>Promedio de espera</span><strong>{{pantallaRed?.tiempoPromedioEspera || '00:00'}}</strong></div></mat-card>
-                  <mat-card class="aps-kpi max"><mat-icon>domain</mat-icon><div><span>Centros activos</span><strong>{{pantallaRed?.centrosActivos || 0}}</strong></div></mat-card>
-                </div>
-                <mat-card class="aps-table-card red-urgencia-card">
+              <!-- PERFIL 1 · VISTA 2: otros establecimientos de la misma comuna. Sin KPI de gestión. -->
+              <ng-container *ngIf="pantallaModo==='comuna'">
+                <mat-card class="aps-table-card red-urgencia-card sala-red-card">
                   <div class="aps-table-title">
-                    <h3><mat-icon>hub</mat-icon>{{pantallaRed?.alcance === 'REGIONAL' ? 'Gestión regional' : 'Gestión comunal'}} · {{pantallaRed?.comuna}}</h3>
-                    <span>{{pantallaRed?.centros?.length || 0}} establecimientos</span>
+                    <h3><mat-icon>hub</mat-icon>Red de urgencia · {{pantallaRed?.comuna || comunaSalaActual}}</h3>
+                    <span>{{pantallaCentrosComunaSala.length}} otros establecimientos</span>
                   </div>
                   <div class="aps-table-scroll">
-                    <table class="aps-public-table red-urgencia-table">
-                      <thead><tr><th>Establecimiento</th><th *ngIf="pantallaRed?.alcance==='REGIONAL'">Comuna</th><th>C1</th><th>C2</th><th>C3</th><th>C4</th><th>C5</th><th>S/C</th><th>Espera</th><th>Atención</th><th>Promedio</th></tr></thead>
+                    <table class="aps-public-table red-urgencia-table sala-red-table">
+                      <thead><tr><th>Establecimiento</th><th>C1</th><th>C2</th><th>C3</th><th>C4</th><th>C5</th><th>Espera</th><th>Atención</th><th>Promedio</th></tr></thead>
                       <tbody>
-                        <tr *ngFor="let c of pantallaRed?.centros || []">
-                          <td class="red-centro-name">{{c.establecimiento}}</td><td *ngIf="pantallaRed?.alcance==='REGIONAL'">{{c.comuna}}</td>
-                          <td class="cat-c1">{{c.c1}}</td><td class="cat-c2">{{c.c2}}</td><td class="cat-c3">{{c.c3}}</td><td class="cat-c4">{{c.c4}}</td><td class="cat-c5">{{c.c5}}</td><td class="cat-sc">{{c.sinCategoria}}</td>
+                        <tr *ngFor="let c of pantallaCentrosComunaSala">
+                          <td class="red-centro-name">{{c.establecimiento}}</td>
+                          <td class="cat-c1">{{c.c1}}</td><td class="cat-c2">{{c.c2}}</td><td class="cat-c3">{{c.c3}}</td><td class="cat-c4">{{c.c4}}</td><td class="cat-c5">{{c.c5}}</td>
                           <td><strong>{{c.pacientesEnEspera}}</strong></td><td><strong>{{c.pacientesEnAtencion}}</strong></td><td><strong>{{c.tiempoPromedioEspera}}</strong></td>
                         </tr>
-                        <tr *ngIf="!(pantallaRed?.centros || []).length"><td [attr.colspan]="pantallaRed?.alcance==='REGIONAL' ? 11 : 10" class="empty-aps">Sin establecimientos para el alcance seleccionado.</td></tr>
+                        <tr *ngIf="!pantallaCentrosComunaSala.length"><td colspan="9" class="empty-aps">No existen otros establecimientos de urgencia con datos para esta comuna.</td></tr>
                       </tbody>
                     </table>
                   </div>
                 </mat-card>
+              </ng-container>
+
+              <!-- PERFIL 2: gestor comunal/regional. Tabla primero y KPI consolidados al pie, según requerimiento. -->
+              <ng-container *ngIf="pantallaModo==='gestion'">
+                <mat-card class="aps-table-card red-urgencia-card gestor-table-card">
+                  <div class="aps-table-title">
+                    <h3><mat-icon>monitoring</mat-icon>{{pantallaRed?.alcance === 'REGIONAL' ? 'Gestión regional' : 'Gestión comunal'}} · {{pantallaRed?.comuna}}</h3>
+                    <span>{{pantallaRed?.centros?.length || 0}} establecimientos</span>
+                  </div>
+                  <div class="aps-table-scroll">
+                    <table class="aps-public-table red-urgencia-table gestor-table">
+                      <thead><tr><th>Establecimiento</th><th *ngIf="pantallaRed?.alcance==='REGIONAL'">Comuna</th><th>C1</th><th>C2</th><th>C3</th><th>C4</th><th>C5</th><th>Espera</th><th>Atención</th><th>Promedio</th></tr></thead>
+                      <tbody>
+                        <tr *ngFor="let c of pantallaRed?.centros || []">
+                          <td class="red-centro-name">{{c.establecimiento}}</td><td *ngIf="pantallaRed?.alcance==='REGIONAL'">{{c.comuna}}</td>
+                          <td class="cat-c1">{{c.c1}}</td><td class="cat-c2">{{c.c2}}</td><td class="cat-c3">{{c.c3}}</td><td class="cat-c4">{{c.c4}}</td><td class="cat-c5">{{c.c5}}</td>
+                          <td><strong>{{c.pacientesEnEspera}}</strong></td><td><strong>{{c.pacientesEnAtencion}}</strong></td><td><strong>{{c.tiempoPromedioEspera}}</strong></td>
+                        </tr>
+                        <tr *ngIf="!(pantallaRed?.centros || []).length"><td [attr.colspan]="pantallaRed?.alcance==='REGIONAL' ? 10 : 9" class="empty-aps">Sin establecimientos para el alcance seleccionado.</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </mat-card>
+
+                <div class="aps-kpi-row gestor-kpis gestor-kpis-bottom">
+                  <mat-card class="aps-kpi wait"><mat-icon>groups</mat-icon><div><span>Total en espera</span><strong>{{pantallaRed?.totalEnEspera || 0}}</strong></div></mat-card>
+                  <mat-card class="aps-kpi care"><mat-icon>medical_services</mat-icon><div><span>En atención</span><strong>{{pantallaRed?.totalEnAtencion || 0}}</strong></div></mat-card>
+                  <mat-card class="aps-kpi avg"><mat-icon>schedule</mat-icon><div><span>{{pantallaRed?.alcance === 'REGIONAL' ? 'Promedio regional de espera' : 'Promedio comunal de espera'}}</span><strong>{{pantallaRed?.tiempoPromedioEspera || '00:00'}}</strong></div></mat-card>
+                  <mat-card class="aps-kpi max"><mat-icon>domain</mat-icon><div><span>Centros activos</span><strong>{{pantallaRed?.centrosActivos || 0}}</strong></div></mat-card>
+                </div>
               </ng-container>
             </div>
           </section>
@@ -812,7 +806,7 @@ export class AppComponent {
   pantallaPage = 0;
   pantallaPageSize = 8;
   pantallaEstablecimientos: any[] = [];
-  pantallaModo: 'centro'|'red' = 'centro';
+  pantallaModo: 'centro'|'comuna'|'gestion' = 'centro';
   pantallaRed: any = null;
   pantallaComunas: string[] = [];
   pantallaComuna = '';
@@ -830,7 +824,7 @@ export class AppComponent {
     if (this.token) {
       this.pantallaEstablecimiento = this.userEstablecimientoCodigo;
       this.pantallaComuna = this.userComuna;
-      this.pantallaModo = this.isGestorUrgencia() ? 'red' : 'centro';
+      this.pantallaModo = this.isGestorUrgencia() ? 'gestion' : 'centro';
       this.loadPantallaEstablecimientos();
       this.loadPantallaComunas();
       this.go(this.defaultViewForRole());
@@ -840,13 +834,12 @@ export class AppComponent {
       if (this.token && this.view === 'pantallaAps') {
         if (this.isVisorAps()) {
           this.visorRotationTick++;
-          if (this.visorRotationTick % 2 === 0) this.pantallaModo = this.pantallaModo === 'centro' ? 'red' : 'centro';
+          if (this.visorRotationTick % 2 === 0) this.pantallaModo = this.pantallaModo === 'centro' ? 'comuna' : 'centro';
         }
-        this.loadPantallaAps(false);
-        if (this.pantallaModo === 'red') this.loadPantallaRed(false);
+        if (this.pantallaModo === 'centro') this.loadPantallaAps(false);
+        else this.loadPantallaRed(false);
       }
     }, 15000);
-    setInterval(() => { if (this.token && this.view === 'pantallaAps' && this.pantallaModo === 'centro' && this.pantallaTotalPages > 1) this.nextPantallaPage(); }, 12000);
   }
   isAdmin() { return this.role === 'ADMIN'; }
   isVisorAps() { return this.role === 'VISOR_APS'; }
@@ -899,7 +892,7 @@ export class AppComponent {
         localStorage.setItem('logoUrl', d.logoUrl || '');
         this.token = d.token; this.username = d.username; this.fullName = d.fullName || ''; this.role = d.role || ''; this.providerName = d.providerName || '';
         this.userComuna = d.comuna || ''; this.userEstablecimientoCodigo = d.establecimientoCodigo ?? null; this.userLogoUrl = d.logoUrl || '';
-        this.pantallaEstablecimiento = this.userEstablecimientoCodigo; this.pantallaComuna = this.userComuna; this.pantallaModo = this.isGestorUrgencia() ? 'red' : 'centro';
+        this.pantallaEstablecimiento = this.userEstablecimientoCodigo; this.pantallaComuna = this.userComuna; this.pantallaModo = this.isGestorUrgencia() ? 'gestion' : 'centro';
         this.loadPantallaEstablecimientos(); this.loadPantallaComunas();
         this.go(this.defaultViewForRole()); this.toast('Autenticado correctamente');
       },
@@ -912,7 +905,7 @@ export class AppComponent {
     this.view = target;
     this.refreshCurrent();
   }
-  refreshCurrent() { if (this.view === 'dashboard') this.loadDashboard(); if (this.view === 'sinEventos') this.loadSinEventos(); if (this.view === 'atenciones') this.loadAtenciones(); if (this.view === 'eventos') this.loadEventos(); if (this.view === 'errores') this.loadErrores(); if (this.view === 'usuarios') this.loadUsers(); if (this.view === 'gestion') this.loadGestion(); if (this.view === 'pantallaAps') { this.loadPantallaAps(); this.loadPantallaRed(false); } }
+  refreshCurrent() { if (this.view === 'dashboard') this.loadDashboard(); if (this.view === 'sinEventos') this.loadSinEventos(); if (this.view === 'atenciones') this.loadAtenciones(); if (this.view === 'eventos') this.loadEventos(); if (this.view === 'errores') this.loadErrores(); if (this.view === 'usuarios') this.loadUsers(); if (this.view === 'gestion') this.loadGestion(); if (this.view === 'pantallaAps') this.reloadPantallaAps(); }
   toast(message: string) { this.snack.open(message, 'OK', { duration: 2600 }); }
 
   loadDashboard() { this.http.get<any>(`${API}/dau/dashboard`).subscribe(r => this.dash = r.data); }
@@ -1136,27 +1129,94 @@ export class AppComponent {
       error: () => { this.pantallaComunas = []; }
     });
   }
-  setPantallaModo(modo: 'centro'|'red') {
+  setPantallaModo(modo: 'centro'|'comuna'|'gestion') {
     this.pantallaModo = modo;
-    if (modo === 'red') this.loadPantallaRed();
-    else this.loadPantallaAps();
+    if (modo === 'centro') this.loadPantallaAps();
+    else this.loadPantallaRed();
   }
+
+  private comunaPorEstablecimiento(codigo: any): string {
+    const c = Number(codigo);
+    switch (c) {
+      case 126801:
+      case 126800:
+      case 126900:
+      case 201069:
+      case 126100:
+        return 'Punta Arenas';
+      case 201079:
+      case 126101:
+      case 121105:
+        return 'Puerto Natales';
+      case 126102:
+      case 121110:
+      case 121102:
+        return 'Porvenir';
+      case 126704:
+      case 121120:
+      case 121108:
+        return 'Cabo de Hornos';
+      default:
+        return '';
+    }
+  }
+
+  get comunaSalaActual(): string {
+    if (this.isVisorAps() && this.userComuna) return this.userComuna;
+    const codigo = this.pantallaEstablecimiento ?? this.userEstablecimientoCodigo;
+    return this.comunaPorEstablecimiento(codigo) || this.userComuna || '';
+  }
+
+  get pantallaCentrosComunaSala(): any[] {
+    const codigoActual = this.pantallaEstablecimiento ?? this.userEstablecimientoCodigo;
+    return (this.pantallaRed?.centros || []).filter((c: any) => String(c.codigoEstablecimiento) !== String(codigoActual));
+  }
+
+  get pantallaTitulo(): string {
+    if (this.pantallaModo === 'centro') return this.nombrePantallaCentro;
+    if (this.pantallaModo === 'comuna') return `Red Urgencia · ${this.pantallaRed?.comuna || this.comunaSalaActual || 'Comuna'}`;
+    return `${this.pantallaRed?.alcance === 'REGIONAL' ? 'Gestión Regional' : 'Gestión Comunal'} · ${this.pantallaRed?.comuna || this.pantallaComuna || this.userComuna || 'Todas las comunas'}`;
+  }
+
+  get pantallaSubtitulo(): string {
+    if (this.pantallaModo === 'centro') return 'Información Servicio de Urgencia';
+    if (this.pantallaModo === 'comuna') return 'Información de otros establecimientos de urgencia de la comuna';
+    return 'Vista para gestores de la red asistencial';
+  }
+
   loadPantallaRed(showToast = true) {
     let params = new HttpParams();
-    const comuna = this.isGestorComunal() ? this.userComuna : this.pantallaComuna;
+    let comuna = '';
+    if (this.pantallaModo === 'comuna') {
+      comuna = this.comunaSalaActual;
+    } else {
+      comuna = this.isGestorComunal() ? this.userComuna : this.pantallaComuna;
+    }
     if (comuna) params = params.set('comuna', comuna);
     this.http.get<any>(`${API}/pantallas/aps/red`, { params }).subscribe({
       next: r => { this.pantallaRed = r.data || {}; this.pantallaOnline = true; this.pantallaLastOk = new Date(); },
       error: e => { this.pantallaOnline = false; if (showToast) this.toast(e?.error?.message || 'No fue posible cargar la red de urgencia'); }
     });
   }
+
   onPantallaComunaChange() { this.loadPantallaRed(); }
+
+  onPantallaEstablecimientoChange() {
+    this.loadPantallaAps(false);
+    if (this.pantallaModo === 'comuna') this.loadPantallaRed(false);
+  }
+
   get nombrePantallaCentro() {
     const e = this.pantallaEstablecimientos.find((x: any) => String(x.value) === String(this.pantallaEstablecimiento));
     return e?.label || this.pantallaAps?.establecimiento || 'Servicio de Urgencia';
   }
 
-  reloadPantallaAps() { this.loadPantallaEstablecimientos(); this.loadPantallaComunas(); this.loadPantallaAps(); if (this.pantallaModo === 'red') this.loadPantallaRed(false); }
+  reloadPantallaAps() {
+    this.loadPantallaEstablecimientos();
+    this.loadPantallaComunas();
+    if (this.pantallaModo === 'centro') this.loadPantallaAps();
+    else this.loadPantallaRed(false);
+  }
   loadPantallaAps(showToast = true) {
     let params = new HttpParams();
     if (this.pantallaEstablecimiento !== null && this.pantallaEstablecimiento !== undefined) params = params.set('establecimiento', String(this.pantallaEstablecimiento));

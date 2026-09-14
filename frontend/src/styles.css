@@ -567,3 +567,24 @@ td small { display: block; color: var(--muted); margin-top: 3px; }
 .gestor-kpis .aps-kpi.max { background: linear-gradient(135deg, #eef2ff, #f8faff); }
 .gestor-kpis .aps-kpi.max mat-icon { background: #dbeafe; color: #1d4ed8; }
 @media (max-width: 1180px) { .visor-controls { grid-template-columns: 1fr !important; } }
+
+/* v4.5.1 Ajuste requerimiento: 3 vistas diferenciadas */
+.sala-kpis { grid-template-columns: repeat(3, 1fr); }
+.sala-category-card { margin-bottom: 18px; }
+.sala-red-card { margin-top: 14px; margin-bottom: 18px; }
+.sala-red-table { min-width: 980px; }
+.gestor-table-card { margin-top: 14px; margin-bottom: 14px; }
+.gestor-kpis-bottom { padding-top: 0; padding-bottom: 18px; }
+.gestor-table th, .sala-red-table th { white-space: nowrap; }
+
+@media (max-width: 1180px) {
+  .sala-kpis { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 850px) {
+  .sala-kpis { grid-template-columns: 1fr; }
+}
+.gestor-kpis .aps-kpi.avg { background: linear-gradient(135deg, #fff4e5, #fffaf3); }
+.gestor-kpis .aps-kpi.avg mat-icon { background: #fed7aa; color: #b45309; }
+.gestor-kpis .aps-kpi.max { background: linear-gradient(135deg, #ffe8e8, #fff8f8); }
+.gestor-kpis .aps-kpi.max mat-icon { background: #fecaca; color: #dc2626; }

@@ -107,3 +107,6 @@ Incluye Gestión Red responsiva, filtros múltiples reales, Bitácora corregida 
 - Corrige cálculo de período usando fecha real de admisión y fallback controlado hacia fecha de atención/alta si datos antiguos venían incompletos.
 - Corrige cálculo de minutos en reportes de tiempos aun cuando pruebas antiguas no traían `fechaAdminision` pero sí hora de admisión y fechas de atención/alta.
 - Incluye `cargar_casos_dau_prueba.sh` corregido y `limpiar_casos_dau_prueba.sql`.
+
+## V4.5.1 – Ajuste tres vistas Visor Integrado
+Ver `README_V4_5_1_AJUSTE_TRES_VISTAS.md`.
