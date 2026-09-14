@@ -598,3 +598,104 @@ td small { display: block; color: var(--muted); margin-top: 3px; }
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* v4.5.4 · Auditoría ADMIN por hover en cantidades del Visor Integrado */
+.audit-hover-target {
+  cursor: help !important;
+  position: relative;
+  transition: box-shadow .14s ease, transform .14s ease, outline-color .14s ease;
+}
+.audit-hover-target:hover {
+  outline: 2px solid rgba(0, 93, 168, .22);
+  outline-offset: -2px;
+  box-shadow: inset 0 0 0 1px rgba(0, 93, 168, .08);
+}
+.aps-kpi.audit-hover-target:hover { transform: translateY(-1px); }
+.aps-category-count.audit-hover-target {
+  border-radius: 7px;
+  padding-top: 4px;
+  margin: 0 6px 5px;
+}
+.audit-hover-panel {
+  position: fixed;
+  z-index: 5000;
+  width: min(430px, calc(100vw - 24px));
+  max-height: min(420px, calc(100vh - 24px));
+  background: #fff;
+  border: 1px solid #cfe0ef;
+  border-radius: 14px;
+  box-shadow: 0 18px 48px rgba(5, 48, 86, .24);
+  overflow: hidden;
+  color: #063d72;
+}
+.audit-hover-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 14px 10px;
+  background: linear-gradient(135deg, #f3f8fc, #ffffff);
+  border-bottom: 1px solid #e3edf5;
+}
+.audit-hover-header > div { min-width: 0; display: grid; gap: 2px; }
+.audit-hover-header span {
+  color: #0067bf;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.audit-hover-header strong { font-size: 18px; color: #063d72; }
+.audit-hover-header small { color: #58748e; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.audit-hover-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #f9fbfd;
+  border-bottom: 1px solid #edf2f7;
+  font-weight: 800;
+}
+.audit-hover-summary strong { font-size: 23px; color: #005da8; }
+.audit-hover-loading,
+.audit-hover-empty {
+  min-height: 92px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #607b93;
+  font-weight: 700;
+  text-align: center;
+}
+.audit-hover-list {
+  max-height: 286px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.audit-hover-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #edf2f7;
+}
+.audit-hover-row:last-child { border-bottom: 0; }
+.audit-hover-row > div:first-child { min-width: 0; display: grid; gap: 2px; }
+.audit-hover-row strong { font-size: 16px; color: #063d72; }
+.audit-hover-row small { color: #6c8297; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.audit-hover-meta { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+.audit-hover-meta span {
+  background: #eef5fb;
+  color: #125184;
+  border-radius: 999px;
+  padding: 4px 7px;
+  font-size: 10px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+@media (max-width: 600px) {
+  .audit-hover-panel { left: 12px !important; right: 12px; width: auto; }
+}

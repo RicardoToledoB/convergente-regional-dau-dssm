@@ -4,6 +4,7 @@ import cl.dssm.dau.dto.ApiResponse;
 import cl.dssm.dau.dto.PantallaApsResponse;
 import cl.dssm.dau.dto.EstablecimientoPantallaResponse;
 import cl.dssm.dau.dto.RedUrgenciaResponse;
+import cl.dssm.dau.dto.PantallaApsAuditoriaResponse;
 import cl.dssm.dau.entity.UserAccount;
 import cl.dssm.dau.model.Role;
 import cl.dssm.dau.repository.UserAccountRepository;
@@ -84,6 +85,17 @@ public class PantallaApsController {
         }
 
         return new ApiResponse<>(true, "Red de urgencia generada", service.getRedUrgencia(scope));
+    }
+
+    @GetMapping("/auditoria")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<PantallaApsAuditoriaResponse> getAuditoria(
+            @RequestParam(required = false) Integer establecimiento,
+            @RequestParam(required = false) String comuna,
+            @RequestParam(defaultValue = "ACTIVOS") String grupo,
+            @RequestParam(required = false) String categoria) {
+        return new ApiResponse<>(true, "Auditoría de pacientes del visor",
+                service.getAuditoria(establecimiento, comuna, grupo, categoria));
     }
 
     private UserAccount currentUser(Authentication authentication) {

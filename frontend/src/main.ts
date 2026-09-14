@@ -628,8 +628,8 @@ class DetailDialogComponent {
               <!-- PERFIL 1 · VISTA 1: información del propio establecimiento. -->
               <div *ngIf="pantallaModo==='centro'" class="aps-rotation-view">
                 <div class="aps-kpi-row sala-kpis">
-                  <mat-card class="aps-kpi wait"><mat-icon>groups</mat-icon><div><span>Pacientes en espera</span><strong>{{pantallaAps?.pacientesEnEspera || 0}}</strong></div></mat-card>
-                  <mat-card class="aps-kpi care"><mat-icon>medical_services</mat-icon><div><span>Pacientes en atención</span><strong>{{pantallaAps?.pacientesEnAtencion || 0}}</strong></div></mat-card>
+                  <mat-card class="aps-kpi wait" [class.audit-hover-target]="isAdmin()" (mouseenter)="showAuditHover($event, 'Pacientes en espera', 'ESPERA', pantallaEstablecimiento)" (mouseleave)="scheduleAuditClose()"><mat-icon>groups</mat-icon><div><span>Pacientes en espera</span><strong>{{pantallaAps?.pacientesEnEspera || 0}}</strong></div></mat-card>
+                  <mat-card class="aps-kpi care" [class.audit-hover-target]="isAdmin()" (mouseenter)="showAuditHover($event, 'Pacientes en atención', 'ATENCION', pantallaEstablecimiento)" (mouseleave)="scheduleAuditClose()"><mat-icon>medical_services</mat-icon><div><span>Pacientes en atención</span><strong>{{pantallaAps?.pacientesEnAtencion || 0}}</strong></div></mat-card>
                   <mat-card class="aps-kpi avg"><mat-icon>schedule</mat-icon><div><span>Tiempo promedio de espera</span><strong>{{pantallaAps?.tiempoPromedioEspera || '00:00'}}</strong></div></mat-card>
                 </div>
 
@@ -639,7 +639,7 @@ class DetailDialogComponent {
                     <div class="aps-category" *ngFor="let c of pantallaAps?.tiemposPorCategoria || []" [ngClass]="categoryCss(c.categoria)">
                       <strong>{{c.categoria}}</strong>
                       <span>{{c.tiempo}}</span>
-                      <small class="aps-category-count">{{c.total || 0}} {{(c.total || 0) === 1 ? 'paciente' : 'pacientes'}}</small>
+                      <small class="aps-category-count" [class.audit-hover-target]="isAdmin()" (mouseenter)="showAuditHover($event, 'Pacientes ' + c.categoria, 'ESPERA', pantallaEstablecimiento, null, c.categoria)" (mouseleave)="scheduleAuditClose()">{{c.total || 0}} {{(c.total || 0) === 1 ? 'paciente' : 'pacientes'}}</small>
                     </div>
                   </div>
                 </mat-card>
@@ -659,7 +659,7 @@ class DetailDialogComponent {
                         <tr *ngFor="let c of pantallaCentrosComunaSala">
                           <td class="red-centro-name">{{c.establecimiento}}</td>
                           <td class="cat-c1">{{c.c1}}</td><td class="cat-c2">{{c.c2}}</td><td class="cat-c3">{{c.c3}}</td><td class="cat-c4">{{c.c4}}</td><td class="cat-c5">{{c.c5}}</td>
-                          <td><strong>{{c.pacientesEnEspera}}</strong></td><td><strong>{{c.pacientesEnAtencion}}</strong></td><td><strong>{{c.tiempoPromedioEspera}}</strong></td>
+                          <td [class.audit-hover-target]="isAdmin()" (mouseenter)="showAuditHover($event, 'Pacientes en espera', 'ESPERA', c.codigoEstablecimiento)" (mouseleave)="scheduleAuditClose()"><strong>{{c.pacientesEnEspera}}</strong></td><td [class.audit-hover-target]="isAdmin()" (mouseenter)="showAuditHover($event, 'Pacientes en atención', 'ATENCION', c.codigoEstablecimiento)" (mouseleave)="scheduleAuditClose()"><strong>{{c.pacientesEnAtencion}}</strong></td><td><strong>{{c.tiempoPromedioEspera}}</strong></td>
                         </tr>
                         <tr *ngIf="!pantallaCentrosComunaSala.length"><td colspan="9" class="empty-aps">No existen establecimientos de urgencia para esta comuna.</td></tr>
                       </tbody>
@@ -682,7 +682,7 @@ class DetailDialogComponent {
                         <tr *ngFor="let c of pantallaRed?.centros || []">
                           <td class="red-centro-name">{{c.establecimiento}}</td><td *ngIf="pantallaRed?.alcance==='REGIONAL'">{{c.comuna}}</td>
                           <td class="cat-c1">{{c.c1}}</td><td class="cat-c2">{{c.c2}}</td><td class="cat-c3">{{c.c3}}</td><td class="cat-c4">{{c.c4}}</td><td class="cat-c5">{{c.c5}}</td>
-                          <td><strong>{{c.pacientesEnEspera}}</strong></td><td><strong>{{c.pacientesEnAtencion}}</strong></td><td><strong>{{c.tiempoPromedioEspera}}</strong></td>
+                          <td [class.audit-hover-target]="isAdmin()" (mouseenter)="showAuditHover($event, 'Pacientes en espera', 'ESPERA', c.codigoEstablecimiento)" (mouseleave)="scheduleAuditClose()"><strong>{{c.pacientesEnEspera}}</strong></td><td [class.audit-hover-target]="isAdmin()" (mouseenter)="showAuditHover($event, 'Pacientes en atención', 'ATENCION', c.codigoEstablecimiento)" (mouseleave)="scheduleAuditClose()"><strong>{{c.pacientesEnAtencion}}</strong></td><td><strong>{{c.tiempoPromedioEspera}}</strong></td>
                         </tr>
                         <tr *ngIf="!(pantallaRed?.centros || []).length"><td [attr.colspan]="pantallaRed?.alcance==='REGIONAL' ? 10 : 9" class="empty-aps">Sin establecimientos para el alcance seleccionado.</td></tr>
                       </tbody>
@@ -691,14 +691,30 @@ class DetailDialogComponent {
                 </mat-card>
 
                 <div class="aps-kpi-row gestor-kpis gestor-kpis-bottom">
-                  <mat-card class="aps-kpi wait"><mat-icon>groups</mat-icon><div><span>Total en espera</span><strong>{{pantallaRed?.totalEnEspera || 0}}</strong></div></mat-card>
-                  <mat-card class="aps-kpi care"><mat-icon>medical_services</mat-icon><div><span>En atención</span><strong>{{pantallaRed?.totalEnAtencion || 0}}</strong></div></mat-card>
+                  <mat-card class="aps-kpi wait" [class.audit-hover-target]="isAdmin()" (mouseenter)="showAuditHover($event, 'Total en espera', 'ESPERA', null, pantallaRed?.alcance === 'COMUNAL' ? pantallaRed?.comuna : null)" (mouseleave)="scheduleAuditClose()"><mat-icon>groups</mat-icon><div><span>Total en espera</span><strong>{{pantallaRed?.totalEnEspera || 0}}</strong></div></mat-card>
+                  <mat-card class="aps-kpi care" [class.audit-hover-target]="isAdmin()" (mouseenter)="showAuditHover($event, 'Total en atención', 'ATENCION', null, pantallaRed?.alcance === 'COMUNAL' ? pantallaRed?.comuna : null)" (mouseleave)="scheduleAuditClose()"><mat-icon>medical_services</mat-icon><div><span>En atención</span><strong>{{pantallaRed?.totalEnAtencion || 0}}</strong></div></mat-card>
                   <mat-card class="aps-kpi avg"><mat-icon>schedule</mat-icon><div><span>{{pantallaRed?.alcance === 'REGIONAL' ? 'Promedio regional de espera' : 'Promedio comunal de espera'}}</span><strong>{{pantallaRed?.tiempoPromedioEspera || '00:00'}}</strong></div></mat-card>
                   <mat-card class="aps-kpi max"><mat-icon>domain</mat-icon><div><span>Centros activos</span><strong>{{pantallaRed?.centrosActivos || 0}}</strong></div></mat-card>
                 </div>
               </ng-container>
             </div>
           </section>
+
+          <div *ngIf="auditHover.visible && isAdmin()" class="audit-hover-panel" [style.left.px]="auditHover.left" [style.top.px]="auditHover.top" (mouseenter)="cancelAuditClose()" (mouseleave)="scheduleAuditClose()">
+            <div class="audit-hover-header">
+              <div><span>Auditoría ADMIN</span><strong>{{auditHover.title}}</strong><small>{{auditHover.scope || 'Cargando alcance...'}}</small></div>
+              <button mat-icon-button (click)="closeAuditHover()" matTooltip="Cerrar"><mat-icon>close</mat-icon></button>
+            </div>
+            <div class="audit-hover-summary"><span>Pacientes asociados</span><strong>{{auditHover.loading ? '...' : auditHover.total}}</strong></div>
+            <div class="audit-hover-loading" *ngIf="auditHover.loading"><mat-spinner diameter="28"></mat-spinner><span>Consultando RUT asociados...</span></div>
+            <div class="audit-hover-empty" *ngIf="!auditHover.loading && !auditHover.pacientes?.length">No existen pacientes asociados a esta cantidad.</div>
+            <div class="audit-hover-list" *ngIf="!auditHover.loading && auditHover.pacientes?.length">
+              <div class="audit-hover-row" *ngFor="let p of auditHover.pacientes">
+                <div><strong>{{p.rut}}</strong><small>DAU {{p.idDau}}<ng-container *ngIf="p.idAtencion"> · Atención {{p.idAtencion}}</ng-container></small></div>
+                <div class="audit-hover-meta"><span>{{p.categoria || 'S/C'}}</span><span>{{displayEstado(p.estado)}}</span></div>
+              </div>
+            </div>
+          </div>
 
           <section *ngIf="token && view==='usuarios'" class="page-section">
             <div class="section-header"><div><h2>Administración de usuarios</h2><p>Creación y control de cuentas para monitoreo, auditoría e integraciones.</p></div></div>
@@ -809,6 +825,9 @@ export class AppComponent {
   pantallaRed: any = null;
   pantallaComunas: string[] = [];
   pantallaComuna = '';
+  auditHover: any = { visible: false, loading: false, left: 0, top: 0, title: '', scope: '', total: 0, pacientes: [] };
+  private auditCloseTimer: any = null;
+  private auditRequestSeq = 0;
 
   get title() {
     return ({ dashboard: 'Dashboard operacional', sinEventos: 'DAU sin nuevos eventos', atenciones: 'Monitor DAU', eventos: 'Bitácora de eventos', errores: 'Errores de integración', usuarios: 'Administración de usuarios', gestion: 'Gestión Red de Urgencia', pantallaAps: 'Visor Integrado de Urgencia' } as any)[this.view];
@@ -836,6 +855,7 @@ export class AppComponent {
     // Mientras el visor esté en modo sala, alterna automáticamente cada 10 segundos.
     setInterval(() => {
       if (!this.token || this.view !== 'pantallaAps' || this.pantallaModo === 'gestion') return;
+      this.closeAuditHover();
       this.pantallaModo = this.pantallaModo === 'centro' ? 'comuna' : 'centro';
       if (this.pantallaModo === 'centro') this.loadPantallaAps(false);
       else this.loadPantallaRed(false);
@@ -1130,6 +1150,7 @@ export class AppComponent {
     });
   }
   setPantallaSala() {
+    this.closeAuditHover();
     this.pantallaModo = 'centro';
     this.loadPantallaAps(false);
     // Precarga la Vista 2 con la comuna del establecimiento para que la transición sea inmediata.
@@ -1137,6 +1158,7 @@ export class AppComponent {
   }
 
   setPantallaModo(modo: 'centro'|'comuna'|'gestion') {
+    this.closeAuditHover();
     this.pantallaModo = modo;
     if (modo === 'centro') this.loadPantallaAps();
     else this.loadPantallaRed();
@@ -1190,6 +1212,58 @@ export class AppComponent {
     if (this.pantallaModo === 'centro') return 'Información Servicio de Urgencia';
     if (this.pantallaModo === 'comuna') return 'Información de los establecimientos de urgencia de la comuna';
     return 'Vista para gestores de la red asistencial';
+  }
+
+  showAuditHover(event: MouseEvent, title: string, grupo: 'ESPERA'|'ATENCION'|'ACTIVOS', establecimiento?: number | null, comuna?: string | null, categoria?: string | null) {
+    if (!this.isAdmin()) return;
+    this.cancelAuditClose();
+
+    const rect = (event.currentTarget as HTMLElement)?.getBoundingClientRect?.();
+    const panelWidth = 430;
+    const panelHeight = 420;
+    const left = Math.max(12, Math.min(rect?.left ?? 20, window.innerWidth - panelWidth - 16));
+    const preferredTop = (rect?.bottom ?? 20) + 8;
+    const top = Math.max(12, Math.min(preferredTop, window.innerHeight - panelHeight - 16));
+
+    const seq = ++this.auditRequestSeq;
+    this.auditHover = { visible: true, loading: true, left, top, title, scope: '', total: 0, pacientes: [] };
+
+    let params = new HttpParams().set('grupo', grupo);
+    if (establecimiento !== null && establecimiento !== undefined) params = params.set('establecimiento', String(establecimiento));
+    if (comuna) params = params.set('comuna', comuna);
+    if (categoria) params = params.set('categoria', categoria);
+
+    this.http.get<any>(`${API}/pantallas/aps/auditoria`, { params }).subscribe({
+      next: r => {
+        if (seq !== this.auditRequestSeq || !this.auditHover.visible) return;
+        const d = r?.data || {};
+        this.auditHover = { ...this.auditHover, loading: false, scope: d.alcance || '', total: d.total || 0, pacientes: d.pacientes || [] };
+      },
+      error: e => {
+        if (seq !== this.auditRequestSeq || !this.auditHover.visible) return;
+        this.auditHover = { ...this.auditHover, loading: false, total: 0, pacientes: [] };
+        this.toast(e?.error?.message || 'No fue posible cargar la auditoría de pacientes');
+      }
+    });
+  }
+
+  scheduleAuditClose() {
+    if (!this.isAdmin()) return;
+    this.cancelAuditClose();
+    this.auditCloseTimer = setTimeout(() => this.closeAuditHover(), 240);
+  }
+
+  cancelAuditClose() {
+    if (this.auditCloseTimer) {
+      clearTimeout(this.auditCloseTimer);
+      this.auditCloseTimer = null;
+    }
+  }
+
+  closeAuditHover() {
+    this.cancelAuditClose();
+    this.auditRequestSeq++;
+    this.auditHover = { ...this.auditHover, visible: false, loading: false, pacientes: [] };
   }
 
   loadPantallaRed(showToast = true) {

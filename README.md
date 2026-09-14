@@ -114,3 +114,6 @@ Ver `README_V4_5_1_AJUSTE_TRES_VISTAS.md`.
 ## V4.5.2 - API Patient
 
 Nuevo endpoint protegido `GET /api/patient/{rut}` para consultar el arreglo cronológico de eventos DAU de un paciente. Ver `README_V4_5_2_API_PATIENT.md`.
+
+## V4.5.4 · Auditoría ADMIN por RUT
+Se incorpora auditoría por hover de las cantidades del Visor Integrado. Sólo ADMIN puede consultar los RUT que componen Espera, Atención y categorizaciones. Ver `README_V4_5_4_AUDITORIA_ADMIN_HOVER.md`.

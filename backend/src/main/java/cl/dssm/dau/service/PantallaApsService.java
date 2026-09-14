@@ -3,6 +3,7 @@ package cl.dssm.dau.service;
 import cl.dssm.dau.dto.PantallaApsResponse;
 import cl.dssm.dau.dto.EstablecimientoPantallaResponse;
 import cl.dssm.dau.dto.RedUrgenciaResponse;
+import cl.dssm.dau.dto.PantallaApsAuditoriaResponse;
 import cl.dssm.dau.entity.DauAttentionEntity;
 import cl.dssm.dau.model.DauEstado;
 import cl.dssm.dau.repository.DauAttentionRepository;
@@ -95,6 +96,79 @@ public class PantallaApsService {
         );
     }
 
+
+    /**
+     * Auditoría operacional del visor. Devuelve únicamente los pacientes que
+     * conforman una cantidad mostrada en pantalla, usando exactamente las mismas
+     * reglas de vigencia/espera/atención del visor. Este método es consumido por
+     * un endpoint restringido a ADMIN.
+     */
+    public PantallaApsAuditoriaResponse getAuditoria(Integer codigoEstablecimiento,
+                                                      String comuna,
+                                                      String grupo,
+                                                      String categoriaFiltro) {
+        String grupoNormalizado = Optional.ofNullable(trimToNull(grupo))
+                .orElse("ACTIVOS")
+                .toUpperCase(Locale.ROOT);
+        if (!Set.of("ACTIVOS", "ESPERA", "ATENCION").contains(grupoNormalizado)) {
+            throw new IllegalArgumentException("Grupo de auditoría no válido. Use ACTIVOS, ESPERA o ATENCION");
+        }
+
+        String comunaNormalizada = trimToNull(comuna);
+        String categoriaNormalizada = trimToNull(categoriaFiltro) == null
+                ? null
+                : normalizaCategoria(categoriaFiltro);
+
+        List<DauAttentionEntity> candidatos = codigoEstablecimiento == null
+                ? attentions.findByEstadoActualNotOrderByFechaActualizacionDesc(DauEstado.ALTA_MEDICA)
+                : attentions.findByCodigoEstablecimientoAndEstadoActualNotOrderByFechaActualizacionDesc(
+                        codigoEstablecimiento, DauEstado.ALTA_MEDICA);
+
+        LocalDateTime now = LocalDateTime.now();
+        List<DauAttentionEntity> rows = candidatos.stream()
+                .filter(a -> esActivoOperacional(a, now))
+                .filter(a -> codigoEstablecimiento != null
+                        || comunaNormalizada == null
+                        || comunaNormalizada.equalsIgnoreCase(comunaEstablecimiento(a.getCodigoEstablecimiento())))
+                .filter(a -> switch (grupoNormalizado) {
+                    case "ESPERA" -> estaEnEspera(a);
+                    case "ATENCION" -> estaEnAtencion(a);
+                    default -> true;
+                })
+                .filter(a -> categoriaNormalizada == null
+                        || Objects.equals(normalizaCategoria(categoria(a)), categoriaNormalizada))
+                .sorted(Comparator
+                        .comparing((DauAttentionEntity a) -> Optional.ofNullable(a.getCodigoEstablecimiento()).orElse(0))
+                        .thenComparing(a -> Optional.ofNullable(parseFechaHora(a.getFechaAdminision(), a.getHoraAdmision()))
+                                .orElse(LocalDateTime.MAX)))
+                .toList();
+
+        List<PantallaApsAuditoriaResponse.PacienteAuditoria> pacientes = rows.stream()
+                .map(a -> new PantallaApsAuditoriaResponse.PacienteAuditoria(
+                        formatoRut(a.getRun(), a.getDv()),
+                        a.getIdDau(),
+                        a.getIdAtencion(),
+                        a.getCodigoEstablecimiento(),
+                        displayEstablecimiento(a.getCodigoEstablecimiento()),
+                        a.getEstadoActual() == null ? null : a.getEstadoActual().name(),
+                        displayCategoriaCodigo(categoria(a)),
+                        a.getFechaAdminision(),
+                        a.getHoraAdmision()
+                ))
+                .toList();
+
+        String alcance = codigoEstablecimiento != null
+                ? displayEstablecimiento(codigoEstablecimiento)
+                : (comunaNormalizada == null ? "Todas las comunas" : comunaNormalizada);
+
+        return new PantallaApsAuditoriaResponse(
+                alcance,
+                grupoNormalizado,
+                categoriaNormalizada == null ? null : displayCategoriaCodigo(categoriaNormalizada),
+                pacientes.size(),
+                pacientes
+        );
+    }
 
     public List<String> getComunas() {
         return getEstablecimientos().stream()
@@ -303,6 +377,13 @@ public class PantallaApsService {
             case 121120, 121108 -> codigo + " - Puerto Williams";
             default -> String.valueOf(codigo);
         };
+    }
+
+    private String formatoRut(String run, String dv) {
+        String r = trimToNull(run);
+        String d = trimToNull(dv);
+        if (r == null) return "Sin RUT";
+        return d == null ? r : r + "-" + d.toUpperCase(Locale.ROOT);
     }
 
     private Integer toInt(String v) { try { return Integer.valueOf(v); } catch(Exception e) { return null; } }

@@ -49,7 +49,7 @@ public class SecurityConfig {
                         // 1) Bearer JWT de usuarios con rol ADMIN o INTEGRADOR.
                         // 2) API Key tecnica legacy, que el ApiKeyFilter traduce a ROLE_INTEGRATION.
                         .requestMatchers("/api/pantallas/aps", "/api/pantallas/aps/**")
-                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_VISOR_APS")
+                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_VISOR_APS", "ROLE_GESTOR_COMUNAL", "ROLE_GESTOR_REGIONAL")
                         .requestMatchers("/api/integration/dau/eventos")
                         .hasAnyAuthority("ROLE_ADMIN", "ROLE_INTEGRADOR", "ROLE_INTEGRATION")
                         // Consulta de eventos por RUT: disponible para ADMIN, integradores autenticados
