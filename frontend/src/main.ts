@@ -650,7 +650,7 @@ class DetailDialogComponent {
                 <mat-card class="aps-table-card red-urgencia-card sala-red-card">
                   <div class="aps-table-title">
                     <h3><mat-icon>hub</mat-icon>Red de urgencia · {{pantallaRed?.comuna || comunaSalaActual}}</h3>
-                    <span>{{pantallaCentrosComunaSala.length}} otros establecimientos</span>
+                    <span>{{pantallaCentrosComunaSala.length}} establecimientos</span>
                   </div>
                   <div class="aps-table-scroll">
                     <table class="aps-public-table red-urgencia-table sala-red-table">
@@ -661,7 +661,7 @@ class DetailDialogComponent {
                           <td class="cat-c1">{{c.c1}}</td><td class="cat-c2">{{c.c2}}</td><td class="cat-c3">{{c.c3}}</td><td class="cat-c4">{{c.c4}}</td><td class="cat-c5">{{c.c5}}</td>
                           <td><strong>{{c.pacientesEnEspera}}</strong></td><td><strong>{{c.pacientesEnAtencion}}</strong></td><td><strong>{{c.tiempoPromedioEspera}}</strong></td>
                         </tr>
-                        <tr *ngIf="!pantallaCentrosComunaSala.length"><td colspan="9" class="empty-aps">No existen otros establecimientos de urgencia con datos para esta comuna.</td></tr>
+                        <tr *ngIf="!pantallaCentrosComunaSala.length"><td colspan="9" class="empty-aps">No existen establecimientos de urgencia para esta comuna.</td></tr>
                       </tbody>
                     </table>
                   </div>
@@ -1175,8 +1175,9 @@ export class AppComponent {
   }
 
   get pantallaCentrosComunaSala(): any[] {
-    const codigoActual = this.pantallaEstablecimiento ?? this.userEstablecimientoCodigo;
-    return (this.pantallaRed?.centros || []).filter((c: any) => String(c.codigoEstablecimiento) !== String(codigoActual));
+    // Vista 2 debe representar la red completa de urgencia de la comuna,
+    // incluyendo el establecimiento cuya pantalla está mostrando la rotación.
+    return this.pantallaRed?.centros || [];
   }
 
   get pantallaTitulo(): string {
@@ -1187,7 +1188,7 @@ export class AppComponent {
 
   get pantallaSubtitulo(): string {
     if (this.pantallaModo === 'centro') return 'Información Servicio de Urgencia';
-    if (this.pantallaModo === 'comuna') return 'Información de otros establecimientos de urgencia de la comuna';
+    if (this.pantallaModo === 'comuna') return 'Información de los establecimientos de urgencia de la comuna';
     return 'Vista para gestores de la red asistencial';
   }
 
